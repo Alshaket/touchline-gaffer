@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-dwoKmUNNnH2EXbb0n1imqhBel2Z2Qw7ET0n+6yWaUy4=' 'sha256-n+2mZwZOG36GPe/Wy8VQR94fEQQJ7NRZv91StJtfstg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0e1b24">
 <title>Touchline Gaffer - football management game</title>
@@ -1150,6 +1152,32 @@ const PRIZE = [2500, 1600, 1000, 700, 450, 300, 200, 100];
 /* ---------- helpers ---------- */
 const $ = (s, r) => (r || document).querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* v10.1 security: build flag (build.sh sets false in the public build), colour/id/position/name sanitising for save data */
+const TG_DEV = false;
+const COL_RE = /^#[0-9a-f]{3,8}$/i, ID_RE = /^[\w-]{1,40}$/;
+const col = (v, d) => typeof v === 'string' && COL_RE.test(v) ? v : (d || '#888888');
+const safeName = (v, d) => { if (typeof v !== 'string') return d; v = v.replace(/[<>\u0000-\u001f]/g, '').slice(0, 40); return v.trim() ? v : d; };
+const LINES = ['GK', 'DEF', 'MID', 'FWD'];
+function sanitizeSave(s) {
+  const DEFC = ['#1d4ed8', '#f8fafc'], seen = new Set(), usedIds = new Set();
+  const fixId = (o, k) => { const v = o[k]; if (typeof v === 'number' && isFinite(v)) return; if (typeof v === 'string' && ID_RE.test(v)) return; o[k] = 'x' + (E.hashStr(String(v)) >>> 0).toString(36); };
+  const walk = (o, d) => { if (!o || typeof o !== 'object' || seen.has(o) || d > 8) return; seen.add(o);
+    if (Array.isArray(o)) { o.forEach(x => walk(x, d + 1)); return; }
+    if (Array.isArray(o.c) && o.c.length >= 2 && o.c.every(x => typeof x !== 'number')) o.c = [col(o.c[0], DEFC[0]), col(o.c[1], DEFC[1])].concat(o.c.slice(2).map(x => col(x, DEFC[1])));
+    ['name', 'short', 'first', 'last', 'club'].forEach(k => { if (typeof o[k] === 'string') o[k] = safeName(o[k], k === 'short' ? 'FC' : 'Unknown'); });
+    if (typeof o.first === 'string' && typeof o.last === 'string') { // a player
+      if ('id' in o) fixId(o, 'id');
+      if (!LINES.includes(o.pos)) o.pos = E.LINE_OF[o.dp] || 'MID';
+      if (o.dp != null && !E.DPOS.includes(o.dp)) { delete o.dp; E.deriveDp(o); }
+      if (o.dp2 != null) o.dp2 = Array.isArray(o.dp2) ? o.dp2.filter(x => E.DPOS.includes(x)) : [];
+    }
+    if (typeof o.pos === 'string' && !LINES.includes(o.pos) && !E.DPOS.includes(o.pos) && o.pos !== 'ANY') o.pos = 'ANY';
+    for (const k in o) { const v = o[k]; if (v && typeof v === 'object') walk(v, d + 1); } };
+  if (s.club) { if (!Array.isArray(s.club.c)) s.club.c = DEFC.slice(); s.club.name = safeName(s.club.name, 'Harbor Lights FC'); }
+  walk(s, 0);
+  if (Array.isArray(s.lineup)) s.lineup = s.lineup.map(x => (typeof x === 'number' || (typeof x === 'string' && ID_RE.test(x))) ? x : null);
+  return s;
+}
 const rnd = Math.random;
 const fmt = n => Math.round(n).toLocaleString('en-US');
 let S = null, leagueTab = 'table', tab = 'club', sel = null, shopTab = 'upgrades', sortBy = 'pos', openRow = null;
@@ -1166,12 +1194,12 @@ let toastT; function toast(t) { const el = $('#toast'); el.textContent = t; el.h
 
 /* ---------- art (all drawn in code) ---------- */
 function crest(c, s) {
-  s = s || 40; const id = 'g' + Math.random().toString(36).slice(2, 7), a = c.c[0], b = c.c[1];
+  s = s || 40; const id = 'g' + Math.random().toString(36).slice(2, 7), a = col(c.c && c.c[0], '#1d4ed8'), b = col(c.c && c.c[1], '#f8fafc');
   const shape = 'M20 2 L36 7 V20 C36 30 28 36 20 39 C12 36 4 30 4 20 V7 Z';
   const pat = [`<rect x="16" y="0" width="8" height="40" fill="${b}"/>`, `<rect x="0" y="16" width="40" height="9" fill="${b}"/>`, `<path d="M4 12 L20 26 L36 12 V19 L20 33 L4 19Z" fill="${b}"/>`, `<circle cx="20" cy="19" r="9" fill="${b}"/>`][c.pat || 0];
   return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" aria-hidden="true"><defs><clipPath id="${id}"><path d="${shape}"/></clipPath></defs><path d="${shape}" fill="${a}"/><g clip-path="url(#${id})" opacity=".95">${pat}</g><path d="${shape}" fill="none" stroke="${b}" stroke-width="2"/><path d="M12 9 L14.5 15 L20 12 L25.5 15 L28 9" fill="none" stroke="#fff6" stroke-width="1.5"/></svg>`;
 }
-function shirt(c1, c2) { return `<svg viewBox="0 0 40 40"><path d="M12 4 L3 9 L6 18 L11 16 V36 H29 V16 L34 18 L37 9 L28 4 Q20 11 12 4Z" fill="${c1}" stroke="${c2}" stroke-width="2" stroke-linejoin="round"/><path d="M12 4 Q20 11 28 4" fill="none" stroke="${c2}" stroke-width="2"/></svg>`; }
+function shirt(c1, c2) { c1 = col(c1, '#1d4ed8'); c2 = col(c2, '#f8fafc'); return `<svg viewBox="0 0 40 40"><path d="M12 4 L3 9 L6 18 L11 16 V36 H29 V16 L34 18 L37 9 L28 4 Q20 11 12 4Z" fill="${c1}" stroke="${c2}" stroke-width="2" stroke-linejoin="round"/><path d="M12 4 Q20 11 28 4" fill="none" stroke="${c2}" stroke-width="2"/></svg>`; }
 function pitchBG(vertical) {
   const L = 'stroke="#ffffffcc" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke"';
   let stripes = ''; for (let i = 0; i < 10; i++) stripes += vertical ? `<rect x="0" y="${i * 10}" width="100" height="10" fill="${i % 2 ? '#2f8f4e' : '#2a8447'}"/>` : `<rect x="${i * 10}" y="0" width="10" height="100" fill="${i % 2 ? '#2f8f4e' : '#2a8447'}"/>`;
@@ -1225,7 +1253,7 @@ const bar = (v, inv) => `<div class="bar ${v < 40 ? 'low' : v < 70 ? 'mid' : ''}
 const rarity = o => o >= 75 ? 'elite' : o >= 65 ? 'gold' : o >= 55 ? 'silver' : 'bronze';
 const posTag = p => `<span class="pos ${p}">${p}</span>`;
 /* v10: detailed position tag (colour by line), secondary positions in the tooltip */
-const dpTag = q => q ? `<span class="pos ${q.pos}" title="${E.DPOS_NAME[E.dpOf(q)] || ''}${q.dp2 && q.dp2.length ? ' (also ' + q.dp2.join(', ') + ')' : ''}">${E.dpOf(q)}</span>` : '';
+const dpTag = q => q ? `<span class="pos ${esc(q.pos)}" title="${E.DPOS_NAME[E.dpOf(q)] || ''}${q.dp2 && q.dp2.length ? ' (also ' + q.dp2.join(', ') + ')' : ''}">${E.dpOf(q)}</span>` : '';
 const fitDot = (p, d) => { const f = E.fitOf(p, d); return `<i class="fit ${f}" title="${E.FIT_LABEL[f]} at ${d}"></i>`; };
 const DPOS_OPTS = E.DPOS.map(k => [k, k + ' - ' + E.DPOS_NAME[k]]);
 const moodFace = m => m >= 75 ? 'Happy' : m >= 45 ? 'Okay' : m >= 25 ? 'Low' : 'Angry';
@@ -1315,6 +1343,7 @@ function migrate(s) {
   (s.market || []).forEach(p => { if (!p.club) p.club = clubNameFor(p.id, s.club && s.club.name); });
   if (s.coh == null) s.coh = 50;
   (s.squad || []).forEach(pstat);
+  sanitizeSave(s);
   return s;
 }
 /* v10: detailed positions for every stored player (XI players take the position of the slot they play in), old competition name renamed */
@@ -1516,7 +1545,7 @@ function genMarket() {
 const tokBuyCost = p => Math.ceil(p.price / (TOKX[0][2] / TOKX[0][1] * TIER_MULT[S.tier || 0]));
 function tokBuyAsk(id) { const p = S.market.find(x => x.id === id); if (!p || !p.found) return; const c = tokBuyCost(p), tk = S.tok || 0;
   if (tk < c) return toast(`Not enough tokens: buying ${sname(p)} with tokens needs ${c}, you have ${fmt(tk)}.`);
-  modal(`<div id="tokBuyConfirm"><h2>Buy with tokens?</h2><p>Sign <b>${esc(sname(p))}</b> (asking ${coinHTML}${fmt(p.price)}) for <b>${tokHTML}${c} tokens</b>. Your coins are not used. This cannot be undone.</p><p class="small mut">You have ${fmt(tk)} tokens. Wages still come out of your weekly budget.</p><div class="row" style="gap:8px"><button class="btn big sp" data-act="close" id="tokBuyNo">Cancel</button><button class="btn pri big sp" data-act="tokbuyok" data-pid="${p.id}" id="tokBuyYes">Confirm</button></div></div>`); }
+  modal(`<div id="tokBuyConfirm"><h2>Buy with tokens?</h2><p>Sign <b>${esc(sname(p))}</b> (asking ${coinHTML}${fmt(p.price)}) for <b>${tokHTML}${c} tokens</b>. Your coins are not used. This cannot be undone.</p><p class="small mut">You have ${fmt(tk)} tokens. Wages still come out of your weekly budget.</p><div class="row" style="gap:8px"><button class="btn big sp" data-act="close" id="tokBuyNo">Cancel</button><button class="btn pri big sp" data-act="tokbuyok" data-pid="${esc(p.id)}" id="tokBuyYes">Confirm</button></div></div>`); }
 function buyPlayer(id, viaTok) {
   const p = S.market.find(x => x.id === id); if (!p) return; if (viaTok && !p.found) return;
   if (S.squad.length >= 24) return toast('Squad is full (24). Sell someone first.');
@@ -1613,7 +1642,7 @@ function renderBuy(pid) {
       <div class="pills" style="margin:8px 0">${[0.85, 0.9, 0.95, 1].map(f => `<button class="pill" data-act="buypreset" data-v="${f}">${Math.round(f * 100)}%</button>`).join('')}</div>
       <div class="negchance" id="negChance"><div class="bar ${cp < 25 ? 'low' : cp < 55 ? 'mid' : ''}"><i style="width:${cp}%"></i></div><div class="small">Chance ${esc(p.club || 'they')} accept: <b>${cp}%</b> <span class="mut">(${rt.toFixed(0)}% vs asking price)</span></div></div>
       <button class="btn pri big" data-act="buymake" id="btnBid" ${S.coins < bid ? 'disabled' : ''}>Make offer ${fmt(bid)}</button></div>`}
-    <button class="btn big" style="margin-top:8px" data-act="buy" data-pid="${p.id}" data-keep="1" id="btnPayAsk" ${can ? '' : 'disabled'}>Pay asking price ${fmt(ask)}</button><p class="tiny mut">Coach level ${coachLvl()} adds +${coachLvl() - 1}% to your chances. Squad ${S.squad.length}/24.</p></div>`);
+    <button class="btn big" style="margin-top:8px" data-act="buy" data-pid="${esc(p.id)}" data-keep="1" id="btnPayAsk" ${can ? '' : 'disabled'}>Pay asking price ${fmt(ask)}</button><p class="tiny mut">Coach level ${coachLvl()} adds +${coachLvl() - 1}% to your chances. Squad ${S.squad.length}/24.</p></div>`);
 }
 function buyAction(act, v) {
   const p = S.market.find(x => x.id === NEGUI.pid); const pid = NEGUI.pid; if (!p) return;
@@ -1922,7 +1951,7 @@ function chip(p, role, i, opts) {
   const cls = ['pchip', 'r-' + rarity(role ? Math.round(E.ovrFor(p, role, sd)) : E.ovr(p))]; if (sel === p.id) cls.push('sel'); if (role && (sd ? E.fitOf(p, sd) === 'unf' : p.pos !== role)) cls.push('oop'); if (role && sd && E.fitOf(p, sd) === 'acc') cls.push('acc'); if (p.fit < 60) cls.push('tired'); if (p.inj) cls.push('inj');
   const o = role ? Math.round(E.ovrFor(p, role, sd)) : E.ovr(p);
   const style = opts.pos ? `left:${opts.pos.x}%;top:${opts.pos.y}%` : '';
-  return `<div class="${cls.join(' ')}" data-pid="${p.id}" data-act="select" data-lp="1" style="${style}">${opts.cover ? `<span class="bkb" title="Permanent backup">BU ${p.pos}</span>` : ''}<div class="sh">${shirt(S.club.c[0], S.club.c[1])}<b>${p.inj ? '+' : o}</b></div><div class="nm">${esc(p.last)}</div>${sd ? `<div class="slotd">${fitDot(p, sd)}${sd}</div>` : ''}${opts.bench ? `<div class="ps">${dpTag(p)}</div>` : ''}<div class="fb"><i style="width:${p.fit}%"></i></div></div>`;
+  return `<div class="${cls.join(' ')}" data-pid="${esc(p.id)}" data-act="select" data-lp="1" style="${style}">${opts.cover ? `<span class="bkb" title="Permanent backup">BU ${esc(p.pos)}</span>` : ''}<div class="sh">${shirt(S.club.c[0], S.club.c[1])}<b>${p.inj ? '+' : o}</b></div><div class="nm">${esc(p.last)}</div>${sd ? `<div class="slotd">${fitDot(p, sd)}${sd}</div>` : ''}${opts.bench ? `<div class="ps">${dpTag(p)}</div>` : ''}<div class="fb"><i style="width:${p.fit}%"></i></div></div>`;
 }
 function vLineup() {
   fixLineup(); const f = E.FORMATIONS[S.formation], by = byId(), pw = myPower(), cm = coverMap(), coverIds = POSN.map(p => cm[p]).filter(Boolean);
@@ -1974,9 +2003,9 @@ function vSquad() {
     const o = E.ovr(p), open = openRow === p.id, val = E.value(p), starter = S.lineup.includes(p.id);
     const a = p.pos === 'GK' ? [['SAV', p.gk]] : [['SHO', p.sho], ['PAS', p.pas], ['DEF', p.def]];
     const tag = starter ? '<span class="tiny" style="color:var(--green)">&#9679; XI</span>' : cov.has(p.id) ? '<span class="bkb static">BU</span>' : '<span class="tiny mut">SUB</span>';
-    return `<div class="prow" data-act="sqrow" data-pid="${p.id}" data-lp="1"><div class="ov rar ${rarity(o)}">${o}</div><div><div class="nm">${esc(sname(p))} ${tag}</div><div class="meta">${dpTag(p)}<span>Age ${p.age}</span><span>Pot ${p.pot}</span><span>Fit ${p.fit}%</span><span>${moodFace(p.mor)}</span><span class="pval">Value ${fmt(val)}</span>${!isC() && !p.me && p.con <= 1 ? '<span style="color:var(--amber)">Contract ends</span>' : ''}${p.inj ? `<span style="color:var(--red)">Injured ${p.inj} wk</span>` : ''}</div></div><div class="rcol">${isC() ? bar(p.fit) : gradeBadge(p)}</div>
+    return `<div class="prow" data-act="sqrow" data-pid="${esc(p.id)}" data-lp="1"><div class="ov rar ${rarity(o)}">${o}</div><div><div class="nm">${esc(sname(p))} ${tag}</div><div class="meta">${dpTag(p)}<span>Age ${p.age}</span><span>Pot ${p.pot}</span><span>Fit ${p.fit}%</span><span>${moodFace(p.mor)}</span><span class="pval">Value ${fmt(val)}</span>${!isC() && !p.me && p.con <= 1 ? '<span style="color:var(--amber)">Contract ends</span>' : ''}${p.inj ? `<span style="color:var(--red)">Injured ${p.inj} wk</span>` : ''}</div></div><div class="rcol">${isC() ? bar(p.fit) : gradeBadge(p)}</div>
     ${open ? `<div class="det"><div class="attrs">${a.map(([l, v]) => `<div>${l} <b style="color:var(--ink)">${v}</b>${bar(v)}</div>`).join('')}<div>FIT <b style="color:var(--ink)">${p.fit}</b>${bar(p.fit)}</div><div>MOOD <b style="color:var(--ink)">${p.mor}</b>${bar(p.mor)}</div><div>GOALS <b style="color:var(--ink)">${p.goals}</b> &middot; ${p.apps} apps</div></div>
-    <div class="row">${p.inj ? `<button class="btn sm" data-act="heal" data-pid="${p.id}" ${S.coins < 150 ? 'disabled' : ''}>Physio ${coinHTML}150</button>` : ''}<button class="btn sm" data-act="detail" data-pid="${p.id}" id="det-${p.id}">${isC() ? 'Details' : 'Details &amp; sell'}</button><button class="btn sm" data-act="cmp" data-pid="${p.id}">Compare</button><span class="sp"></span><span class="tiny mut">Value ${fmt(val)}</span></div></div>` : ''}</div>`;
+    <div class="row">${p.inj ? `<button class="btn sm" data-act="heal" data-pid="${esc(p.id)}" ${S.coins < 150 ? 'disabled' : ''}>Physio ${coinHTML}150</button>` : ''}<button class="btn sm" data-act="detail" data-pid="${esc(p.id)}" id="det-${esc(p.id)}">${isC() ? 'Details' : 'Details &amp; sell'}</button><button class="btn sm" data-act="cmp" data-pid="${esc(p.id)}">Compare</button><span class="sp"></span><span class="tiny mut">Value ${fmt(val)}</span></div></div>` : ''}</div>`;
   };
   return `<div class="card"><div class="row"><h3 style="margin:0" class="sp">${isC() ? 'Team' : 'Squad'} (${S.squad.length}/24)</h3><div class="pills"><button class="pill ${sortBy === 'pos' ? 'on' : ''}" data-act="sort" data-v="pos">By position</button><button class="pill ${sortBy === 'ovr' ? 'on' : ''}" data-act="sort" data-v="ovr">By rating</button><button class="pill ${sortBy === 'xi' ? 'on' : ''}" data-act="sort" data-v="xi">Hierarchy</button></div></div>
   <p class="small mut" style="margin:6px 0">${S.lineup.length} in the XI, ${S.squad.length - 11} subs (<span class="bkb static">BU</span> = permanent backup). Tap a player for stats, hold for the full detail card. ${isC() ? '' : 'The letter badge is the player grade (rating plus potential). To sell, tap a player and use <b>Sell player</b> on his card.'}</p>${list.map(row).join('')}</div>`;
@@ -2025,7 +2054,7 @@ function vShop() {
   }).join('');
   const mk = S.market.map(p => {
     const a = p.pos === 'GK' ? 'SAV ' + p.gk : `SHO ${p.sho} &middot; PAS ${p.pas} &middot; DEF ${p.def}`;
-    return `<div class="mk" data-lp="1" data-pid="${p.id}"><div class="prow" style="display:contents"><div class="ov" style="width:38px;height:38px;border-radius:10px;background:var(--panel2);display:grid;place-items:center;font-weight:900">${E.ovr(p)}</div><div><div class="nm" style="font-weight:800">${esc(sname(p))} ${dpTag(p)}${p.found ? ' <span class="scouted">SCOUTED</span>' : ''}</div><div class="small mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${a}</div><div class="tiny mut">${esc(p.club || '')}</div><button class="btn sm" style="margin-top:4px" data-act="cmp" data-pid="${p.id}">Compare</button></div></div><div class="mkbtns"><button class="btn pri sm" data-act="buy" data-pid="${p.id}" ${S.coins < p.price ? 'disabled' : ''}>${coinHTML} ${fmt(p.price)}</button>${p.found && S.coins < p.price ? `<button class="btn sm" data-act="tokbuy" data-pid="${p.id}" id="tb-${p.id}" ${(S.tok || 0) < tokBuyCost(p) ? 'disabled' : ''}>Buy now ${tokHTML}${tokBuyCost(p)}</button>${(S.tok || 0) < tokBuyCost(p) ? `<span class="tiny" style="color:var(--amber)" id="tbs-${p.id}">Need ${tokBuyCost(p)} tokens</span>` : ''}` : ''}<button class="btn sm" data-act="negbuy" data-pid="${p.id}" id="nb-${p.id}">Negotiate</button></div></div>`;
+    return `<div class="mk" data-lp="1" data-pid="${esc(p.id)}"><div class="prow" style="display:contents"><div class="ov" style="width:38px;height:38px;border-radius:10px;background:var(--panel2);display:grid;place-items:center;font-weight:900">${E.ovr(p)}</div><div><div class="nm" style="font-weight:800">${esc(sname(p))} ${dpTag(p)}${p.found ? ' <span class="scouted">SCOUTED</span>' : ''}</div><div class="small mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${a}</div><div class="tiny mut">${esc(p.club || '')}</div><button class="btn sm" style="margin-top:4px" data-act="cmp" data-pid="${esc(p.id)}">Compare</button></div></div><div class="mkbtns"><button class="btn pri sm" data-act="buy" data-pid="${esc(p.id)}" ${S.coins < p.price ? 'disabled' : ''}>${coinHTML} ${fmt(p.price)}</button>${p.found && S.coins < p.price ? `<button class="btn sm" data-act="tokbuy" data-pid="${esc(p.id)}" id="tb-${esc(p.id)}" ${(S.tok || 0) < tokBuyCost(p) ? 'disabled' : ''}>Buy now ${tokHTML}${tokBuyCost(p)}</button>${(S.tok || 0) < tokBuyCost(p) ? `<span class="tiny" style="color:var(--amber)" id="tbs-${esc(p.id)}">Need ${tokBuyCost(p)} tokens</span>` : ''}` : ''}<button class="btn sm" data-act="negbuy" data-pid="${esc(p.id)}" id="nb-${esc(p.id)}">Negotiate</button></div></div>`;
   }).join('');
   const market = `<div class="card"><div class="row"><h3 class="sp" style="margin:0">Transfer market (${S.market.length})</h3></div><p class="small mut" style="margin:6px 0">New players appear after every match. Squad ${S.squad.length}/24. Your XI averages ${myPower().avg.toFixed(0)}. Hold a player to see his quality and potential.</p>
   <div class="row" style="margin-bottom:6px"><button class="btn sm" data-act="refresh" ${S.coins < 60 ? 'disabled' : ''}>Refresh ${coinHTML}60</button><button class="btn ad sm" data-act="refresh_ad"><span class="adtag">AD</span>Free refresh</button><button class="btn pri sm" data-act="tsearch" id="btnSearch">&#128269; Search ${tokHTML}${TOK.search}</button></div>${mk}</div>`;
@@ -2055,8 +2084,8 @@ function showPlayer(pid) {
   <div class="row small" style="margin-top:4px"><span class="mut">Max he can reach: <b style="color:var(--ink)">${pot}</b>${growth > 0 ? ` (+${growth} room to grow)` : ' (already at his peak)'}</span><span class="sp"></span>${stars(pot)}</div></div>
   <div class="pattrs">${attrs.map(([l, v]) => pb(l, v)).join('')}</div>
   <div class="pgrid"><div><small>Fitness</small><b>${p.fit}%</b>${bar(p.fit)}</div><div><small>Morale</small><b>${mood}</b>${bar(p.mor)}</div><div><small>Health</small><b style="font-size:12px">${inj}</b></div><div><small>${mkt ? 'Asking price' : 'Market value'}</small><b>${coinHTML} ${fmt(mkt ? mkt.price : value)}</b><span class="tiny mut">${mkt ? esc(mkt.club || '') : valueNote(p)}</span></div>${mkt ? '' : `<div><small>Season</small><b>${p.goals} goals &middot; ${p.apps} apps</b></div><div id="pContract"><small>Contract</small><b>${p.me ? 'Player' : (p.con || 1) + ' season' + ((p.con || 1) > 1 ? 's' : '') + ' left'}</b><span class="tiny mut">Wage ${fmt(E.wage(p))}/wk</span></div>`}</div>${mkt ? `<p class="small mut" style="margin:8px 0 0">Contract with ${esc(mkt.club || 'his club')}: ${mkt.con || 1} season${(mkt.con || 1) > 1 ? 's' : ''} left &middot; would earn ${fmt(E.wage(p))}/wk with you</p>` : tpHTML(p)}
-  ${mkt ? `<button class="btn pri big" style="margin-top:12px" data-act="buy" data-pid="${p.id}" data-keep="1" ${S.coins < mkt.price ? 'disabled' : ''}>Sign for ${fmt(mkt.price)}</button><button class="btn big" style="margin-top:8px" data-act="negbuy" data-pid="${p.id}" id="btnNegBuy">Negotiate the price</button>` : isC() ? '' : `${(p.con || 1) < 5 ? `<button class="btn big" style="margin-top:12px" data-act="extend" data-pid="${p.id}" id="btnExtend" ${S.coins < extendCost(p) ? 'disabled' : ''}>Extend contract +${p.age >= 34 ? 1 : 2} (fee ${fmt(extendCost(p))})</button>` : ''}<button class="btn big" style="margin-top:8px" data-act="sell" data-pid="${p.id}" id="btnSellCard">Sell player (negotiate)</button>`}
-  <div class="row" style="margin-top:8px;gap:8px"><button class="btn big sp" data-act="cmp" data-pid="${p.id}" id="btnCompare">Compare</button></div><button class="btn big back" style="margin-top:8px" data-act="close" id="btnClosePlayer">Close</button></div>`);
+  ${mkt ? `<button class="btn pri big" style="margin-top:12px" data-act="buy" data-pid="${esc(p.id)}" data-keep="1" ${S.coins < mkt.price ? 'disabled' : ''}>Sign for ${fmt(mkt.price)}</button><button class="btn big" style="margin-top:8px" data-act="negbuy" data-pid="${esc(p.id)}" id="btnNegBuy">Negotiate the price</button>` : isC() ? '' : `${(p.con || 1) < 5 ? `<button class="btn big" style="margin-top:12px" data-act="extend" data-pid="${esc(p.id)}" id="btnExtend" ${S.coins < extendCost(p) ? 'disabled' : ''}>Extend contract +${p.age >= 34 ? 1 : 2} (fee ${fmt(extendCost(p))})</button>` : ''}<button class="btn big" style="margin-top:8px" data-act="sell" data-pid="${esc(p.id)}" id="btnSellCard">Sell player (negotiate)</button>`}
+  <div class="row" style="margin-top:8px;gap:8px"><button class="btn big sp" data-act="cmp" data-pid="${esc(p.id)}" id="btnCompare">Compare</button></div><button class="btn big back" style="margin-top:8px" data-act="close" id="btnClosePlayer">Close</button></div>`);
 }
 /* ---------- sound (tiny WebAudio blips, no files) ---------- */
 let AC = null;
@@ -2082,8 +2111,8 @@ function openMatch() {
   const info = prepareMatch(), m = info.m, fx = info.fx, el = $('#match'), L = S.live;
   MS = { info, m, fx, speed: S.settings.speed || 1, skip: false, timer: null, ht: false, done: false, ball: { x: 50, y: 50, tx: 50, ty: 50, rate: 7 }, dots: [[], []], cele: null, tos: [], last: 0, near: null, pendMent: null, ap: new Set() }; m.bst = [null, null]; bcPlan(L);
   const H = m.sides[0], A = m.sides[1];
-  MS.kit = [H.c[0], clashD(H.c[0], A.c[0]) < 110 ? A.c[1] : A.c[0]];
-  MS.kit2 = [H.c[1], MS.kit[1] === A.c[1] ? A.c[0] : A.c[1]];
+  MS.kit = [H.c[0], clashD(H.c[0], A.c[0]) < 110 ? A.c[1] : A.c[0]].map(x => col(x));
+  MS.kit2 = [H.c[1], MS.kit[1] === A.c[1] ? A.c[0] : A.c[1]].map(x => col(x, '#ffffff'));
   const dots = [0, 1].map(si => E.FORMATIONS[m.sides[si].formation].map((s, i) => `<div class="dot ${s.r === 'GK' ? 'gk' : ''}" data-s="${si}" data-i="${i}">${sprite(MS.kit[si], MS.kit2[si], s.r === 'GK', m.sides[si].pat)}</div>`).join('')).join('');
   const mid = `<div class="vs">VS</div><div class="sc" id="mscore">0 - 0</div><div class="clk" id="mclock">Kick-off</div>`;
   el.innerHTML = `<div class="mwrap" id="mwrap"><div class="mleft">
@@ -2240,7 +2269,7 @@ function htSubsHTML() {
   return `<h3 class="small mut" style="margin:12px 0 6px">SUBSTITUTIONS (${subs.length}/3 used)</h3><div class="subs" id="htSubs">
   <div class="small mut">${left > 0 ? (so == null ? 'Tap a tired or weak starter to take off:' : 'Now tap who comes on:') : 'No substitutions left.'}</div>
   ${left > 0 && so == null ? `<div class="subrow">${slots.map((x, i) => x.role === 'GK' ? '' : `<button class="subchip ${x.p.fit < 60 ? 'tired' : ''}" data-act="subout" data-v="${i}">${esc(x.p.last)}<small>${x.role} &middot; ${x.p.fit}%</small></button>`).join('')}</div>` : ''}
-  ${left > 0 && so != null ? `<div class="subrow">${bench.filter(p => slots[so].role === 'GK' ? p.pos === 'GK' : p.pos !== 'GK').map(p => `<button class="subchip" data-act="subin" data-pid="${p.id}">${esc(p.last)}<small>${p.pos} &middot; ${E.ovr(p)} &middot; ${p.fit}%</small></button>`).join('')}</div><button class="btn sm" data-act="subcancel">Cancel</button>` : ''}
+  ${left > 0 && so != null ? `<div class="subrow">${bench.filter(p => slots[so].role === 'GK' ? p.pos === 'GK' : p.pos !== 'GK').map(p => `<button class="subchip" data-act="subin" data-pid="${esc(p.id)}">${esc(p.last)}<small>${esc(p.pos)} &middot; ${E.ovr(p)} &middot; ${p.fit}%</small></button>`).join('')}</div><button class="btn sm" data-act="subcancel">Cancel</button>` : ''}
   ${subs.map(x => `<div class="tiny" style="color:var(--green)">${esc(P(x.out).last)} off &rarr; ${esc(P(x.pid).last)} on</div>`).join('')}</div>`;
 }
 function endMatchView() {
@@ -2335,7 +2364,7 @@ function showEnd() {
   ${e.board ? `<p class="small" id="boardVerdict">Board target: <b>${esc(e.board.label)}</b>. ${esc(e.board.text)}${e.board.bonus ? ' Bonus +' + fmt(e.board.bonus) + '.' : ''}</p>` : ''}
   ${e.expiring && e.expiring.length ? `<p class="small" id="expiring" style="color:var(--amber)">Contracts ending: ${e.expiring.map(x => `<b>${esc(x.name)}</b> (${x.ovr}, age ${x.age})`).join(', ')}. Extend them on the player card before you start next season, or they leave on a free.</p>` : ''}
   ${e.topScorer ? `<p class="small">Top scorer: <b>${esc(e.topScorer.name)}</b> (${e.topScorer.goals} goals)</p>` : ''}
-  ${e.youth.length ? `<p class="small">Youth intake: ${e.youth.map(y => `<b>${esc(y.name)}</b> (${y.pos}, ${y.ovr}, pot ${y.pot})`).join(', ')}</p>` : ''}
+  ${e.youth.length ? `<p class="small">Youth intake: ${e.youth.map(y => `<b>${esc(y.name)}</b> (${esc(y.pos)}, ${y.ovr}, pot ${y.pot})`).join(', ')}</p>` : ''}
   ${e.xp ? `<p class="small">Coach XP <b>+${e.xp}</b> for the season${S.coach ? ' (level ' + S.coach.lvl + ', ' + COACH_TITLES[S.coach.lvl - 1] + ')' : ''}.</p>` : ''}<p class="small mut">Players age one year: youngsters improve, veterans may decline.</p>
   <button class="btn pri big" data-act="nextseason" id="btnNext">Start season ${e.season + 1}</button>`, { back: false });
 }
@@ -2505,7 +2534,7 @@ document.addEventListener('click', e => {
   if (act !== 'select') sfx.click();
   switch (act) {
     case 'color': newColor = +v; document.querySelectorAll('.sw').forEach((s, i) => s.classList.toggle('on', i === newColor)); break;
-    case 'newgame': { const n = ($('#clubName').value || '').trim() || 'Harbor Lights FC'; newGame(n, newColor); enterGame(); break; }
+    case 'newgame': { const n = safeName(($('#clubName').value || '').trim(), 'Harbor Lights FC'); newGame(n, newColor); enterGame(); break; }
     case 'newcareer': titleView = 'manager'; showTitle(); break;
     case 'newcareer_retired': { const f = ($('#cFirst').value || '').trim() || 'Alex', l = ($('#cLast').value || '').trim() || 'Rivers'; newCareer(f, l, newPos, newColor); enterGame(); break; }
     case 'newpos': newPos = v; document.querySelectorAll('#posPills .pill').forEach(x => x.classList.toggle('on', x.dataset.v === v)); $('#posNote').textContent = POS_NOTE[v]; break;
@@ -2701,7 +2730,7 @@ function mgPitch(c, W, H) { c.fillStyle = '#1d5a38'; c.fillRect(0, 0, W, H); c.f
 function mgDot(c, x, y, r, fill, stroke) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = fill; c.fill(); if (stroke) { c.lineWidth = 2; c.strokeStyle = stroke; c.stroke(); } }
 /* attack: aim and shoot past a keeper who patrols the goal line */
 function mgPenalty(g) {
-  const GL = 0.14, GR = 0.86, GT = 0.08, GB = 0.34, kitC = S.club.c[0];
+  const GL = 0.14, GR = 0.86, GT = 0.08, GB = 0.34, kitC = col(S.club.c[0]);
   let shots = 0, aim = null, ball = null, kx = 0.5, ph = Math.random() * 6, msgT = 0;
   const kAt = t => 0.5 + 0.3 * Math.sin(t / 700 + ph) * (1 + 0.04 * shots);
   const shoot = (x, y) => { if (ball || shots >= 8) return; shots++; ball = { x0: 0.5, y0: 0.86, x, y, t: 0 }; aim = null; };
@@ -2799,14 +2828,14 @@ function renderCmp() {
   if (!mA && !mB) {
     if (aS !== bS) { const inP = aS ? B : A, outP = aS ? A : B; act = `<button class="btn pri big" data-act="cmpswap" id="btnCmpSwap">Swap in lineup: ${esc(inP.last)} in for ${esc(outP.last)}</button>`; }
     else if (aS && bS) act = `<button class="btn big" data-act="cmpswap" id="btnCmpSwap">Swap their positions in the lineup</button>`;
-  } else { const m = mA ? A : B; act = `<button class="btn pri big" data-act="cmpsign" data-pid="${m.id}" ${S.coins < m.price ? 'disabled' : ''}>Sign ${esc(m.last)} for ${fmt(m.price)}</button>`; }
+  } else { const m = mA ? A : B; act = `<button class="btn pri big" data-act="cmpsign" data-pid="${esc(m.id)}" ${S.coins < m.price ? 'disabled' : ''}>Sign ${esc(m.last)} for ${fmt(m.price)}</button>`; }
   modal(`<div id="cmpView"><div class="chead">${backBtn('cmpclose', 'Back', 'btnCmpBack')}<h2>Compare players</h2></div>
   <div class="cph2">${side(A, 'a')}<button class="btn sm cswap" data-act="cmpsides" aria-label="Swap sides">&#8644;</button>${side(B, 'b')}</div>${body}<div class="cact">${act}<button class="btn big back" data-act="cmpclose" id="btnCmpClose">Back</button></div></div>`, { back: false });
   $('#overlay .modal').classList.add('cmpm');
 }
 function renderPick() {
   const other = CMP.pick === 'a' ? CMP.b : CMP.a, sq = S.squad.filter(p => p.id !== other).sort((a, b) => POSN.indexOf(a.pos) - POSN.indexOf(b.pos) || E.ovr(b) - E.ovr(a)), mk = S.market.filter(p => p.id !== other);
-  const row = p => `<button class="pickrow" data-act="cmppick" data-pid="${p.id}"><span class="rar sm ${rarity(E.ovr(p))}"><b>${E.ovr(p)}</b></span><span class="pn">${esc(p.first[0] + '. ' + p.last)}</span>${dpTag(p)}<small>${roleOf(p)} &middot; ${p.age}y &middot; pot ${p.pot}</small></button>`;
+  const row = p => `<button class="pickrow" data-act="cmppick" data-pid="${esc(p.id)}"><span class="rar sm ${rarity(E.ovr(p))}"><b>${E.ovr(p)}</b></span><span class="pn">${esc(p.first[0] + '. ' + p.last)}</span>${dpTag(p)}<small>${roleOf(p)} &middot; ${p.age}y &middot; pot ${p.pot}</small></button>`;
   modal(`<div id="cmpPick"><div class="chead">${backBtn('cmpbackpick', 'Back')}<h2>Choose a player</h2></div><h3 class="small mut">YOUR SQUAD</h3>${sq.map(row).join('')}<h3 class="small mut" style="margin-top:10px">TRANSFER MARKET</h3>${mk.map(row).join('')}</div>`, { back: false });
   $('#overlay .modal').classList.add('cmpm');
 }
@@ -3066,7 +3095,7 @@ function vPlayerC() {
   return `<div class="grid2"><div><div class="card pcard2"><div class="row" style="gap:12px;align-items:center"><div class="rar ${rarity(o)} big2">${o}</div><div class="sp"><h2 style="margin:0">${esc(pl.first + ' ' + pl.last)}</h2><div class="small mut">${dpTag(pl)} Age ${pl.age} &middot; ${esc(S.club.name)} &middot; ${TIERS[S.tier]}</div><div class="small" style="margin-top:3px">Potential ${stars(pl.pot)} <b>${grade(pl.pot)}</b> (max ${pl.pot})</div></div></div>
   <div class="pattrs" style="margin-top:10px">${attrs.map(([l, k]) => pb(l, pl[k], k === MAIN_ATTR[pl.pos])).join('')}${pb('Fitness', pl.fit)}${pb('Morale', pl.mor)}</div>
   <div class="row small" style="margin-top:8px"><span>Role: <b style="color:${role.col}">${role.txt}</b></span></div><div class="row small"><span>Coach trust <b>${S.me.trust}</b></span><span>Fame <b>${S.me.rep}</b></span><span>Peak <b>${S.me.peak}</b></span></div>
-  <div class="row" style="gap:8px;margin-top:10px"><button class="btn big sp" data-act="cmp" data-pid="${pl.id}" id="btnCmpMe">Compare</button><button class="btn big sp" data-act="detail" data-pid="${pl.id}">Full card</button></div></div>
+  <div class="row" style="gap:8px;margin-top:10px"><button class="btn big sp" data-act="cmp" data-pid="${esc(pl.id)}" id="btnCmpMe">Compare</button><button class="btn big sp" data-act="detail" data-pid="${esc(pl.id)}">Full card</button></div></div>
   <div class="card"><h3>Awards cabinet</h3><div class="cabinet" id="cabinet">${cabinet}</div></div></div>
   <div><div class="card"><h3>Statistics</h3><table class="tbl" id="careerStats"><thead><tr><th></th><th>Apps</th><th>G</th><th>A</th><th>CS</th><th>Avg</th><th>Min</th></tr></thead><tbody><tr><td><b>Season ${S.season}</b></td><td>${s.apps}</td><td>${s.g}</td><td>${s.a}</td><td>${s.cs}</td><td>${av(s)}</td><td>${s.min}</td></tr><tr><td><b>Career</b></td><td>${c.apps}</td><td>${c.g}</td><td>${c.a}</td><td>${c.cs}</td><td>${av(c)}</td><td>${c.min}</td></tr></tbody></table></div>
   <div class="card" id="objCard2"><h3>Season goals</h3>${objectives().map(o => `<div class="obj ${o.ok ? 'ok' : ''}"><span>${o.ok ? '&#10003;' : '&#9675;'} ${o.t}</span><b>${o.inv ? 'top ' + o.need : (o.dec ? o.have.toFixed(1) : o.have) + ' / ' + o.need}</b></div>`).join('')}</div>
@@ -3142,10 +3171,10 @@ const TOK = { start: 15, daily: 2, daily7: 6, win: 1, ach: 2, lvl: 3, season: 5,
 const PACKS = [['Handful', 30], ['Bag', 80], ['Chest', 200], ['Vault', 500]];
 const SHOUTS = { enc: ['Encourage', 'Small lift all over the pitch', 1.05, 1.05], dem: ['Demand more', 'Push forward, a little looser at the back', 1.1, 0.95], tight: ['Tighten up', 'Protect the lead', 0.95, 1.1], calm: ['Calm down', 'Steady the side', 1.0, 1.06] };
 const tokHTML = '<i class="tok"></i>';
-const devOff = () => { try { return +(localStorage.getItem('tg.devoff') || 0) || 0; } catch (e) { return 0; } };
+const devOff = () => { if (!TG_DEV) return 0; try { return +(localStorage.getItem('tg.devoff') || 0) || 0; } catch (e) { return 0; } };
 const NOW = () => Date.now() + devOff();
-function devFF(ms) { try { localStorage.setItem('tg.devoff', String(devOff() + (+ms || 0))); } catch (e) {} if (S) { paceSync(); save(); } return NOW(); }
-function paceOn() { try { const f = localStorage.getItem('tg.pace'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} return !navigator.webdriver; }
+function devFF(ms) { if (!TG_DEV) return NOW(); try { localStorage.setItem('tg.devoff', String(devOff() + (+ms || 0))); } catch (e) {} if (S) { paceSync(); save(); } return NOW(); }
+function paceOn() { if (!TG_DEV) return true; try { const f = localStorage.getItem('tg.pace'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} return !navigator.webdriver; }
 function v7init(s) {
   if (!s.pace) s.pace = { n: PACE.max, at: NOW(), rec: NOW(), ads: { d: '', n: 0 }, tads: { d: '', n: 0 } };
   if (s.tok == null) s.tok = TOK.start;
@@ -3290,7 +3319,7 @@ setInterval(() => { if (!S || !S.pace || !paceOn()) return; const n0 = S.pace.n;
 const INT = { light: { l: 'Light', m: 0.75, fit: -3, inj: 0, d: '0.75x progress, +3 fitness' }, normal: { l: 'Normal', m: 1, fit: 0, inj: 0, d: '1x progress' }, hard: { l: 'Hard', m: 1.4, fit: 8, inj: 0.2, d: '1.4x progress, -8 fitness, injury risk' } };
 const TCOOL = 2 * 3600e3; // real-time gap between training sessions (only while pacing is on)
 const BC = { autoShot: 0.25, autoSave: 0.75 }; // skipped moments: chance our shot scores / our keeper saves
-function bcOn() { if (S && S.settings && S.settings.bc === false) return false; /* the player's own setting always wins */ try { const f = localStorage.getItem('tg.bc'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} return !navigator.webdriver; }
+function bcOn() { if (S && S.settings && S.settings.bc === false) return false; /* the player's own setting always wins */ if (!TG_DEV) return true; try { const f = localStorage.getItem('tg.bc'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} return !navigator.webdriver; }
 function v8init(s) { if (!s.tInt) s.tInt = 'normal'; if (!s.drill) s.drill = 'match'; if (s.evq === undefined) s.evq = null; if (!s.tcool) s.tcool = 0; if (!s.talk) s.talk = null; if (!s.chats) s.chats = { ci: -1, ids: {} }; }
 /* ----- big chances ----- */
 function bcPlan(L) {
@@ -3380,7 +3409,7 @@ function applyHTT(m, my, a) { const diff = m.score[my] - m.score[1 - my], e = ht
 function chatsOf() { if (!S.chats || S.chats.ci !== S.ci) S.chats = { ci: S.ci, ids: {} }; return S.chats; }
 function chatHTML(p) {
   if (isC() || !p || p.me || !S.squad.includes(p)) return ''; const done = chatsOf().ids[p.id];
-  return `<div class="card" id="chatCard" style="margin-top:10px"><h3>Talk to ${esc(p.last)} &middot; morale ${p.mor} (${moodFace(p.mor)})</h3>${done ? `<p class="small" id="chatRes">${esc(done)}</p>` : `<div class="talkrow"><button class="btn sm talkb" data-act="chat" data-pid="${p.id}" data-v="praise" id="chatPraise"><b>Praise</b><small>Best when he plays well</small></button><button class="btn sm talkb" data-act="chat" data-pid="${p.id}" data-v="promise" id="chatPromise"><b>Promise minutes</b><small>+8 now; -12 if he does not start next</small></button><button class="btn sm talkb" data-act="chat" data-pid="${p.id}" data-v="crit" id="chatCrit"><b>Criticise</b><small>Confident players respond</small></button></div><p class="tiny mut">One chat per player each matchday.</p>`}</div>`;
+  return `<div class="card" id="chatCard" style="margin-top:10px"><h3>Talk to ${esc(p.last)} &middot; morale ${p.mor} (${moodFace(p.mor)})</h3>${done ? `<p class="small" id="chatRes">${esc(done)}</p>` : `<div class="talkrow"><button class="btn sm talkb" data-act="chat" data-pid="${esc(p.id)}" data-v="praise" id="chatPraise"><b>Praise</b><small>Best when he plays well</small></button><button class="btn sm talkb" data-act="chat" data-pid="${esc(p.id)}" data-v="promise" id="chatPromise"><b>Promise minutes</b><small>+8 now; -12 if he does not start next</small></button><button class="btn sm talkb" data-act="chat" data-pid="${esc(p.id)}" data-v="crit" id="chatCrit"><b>Criticise</b><small>Confident players respond</small></button></div><p class="tiny mut">One chat per player each matchday.</p>`}</div>`;
 }
 function doChat(pid, k) {
   const p = P(pid); if (!p || chatsOf().ids[pid]) return null; let d, t;
@@ -3451,7 +3480,7 @@ function asstTips() {
   const exp = S.squad.filter(p => !p.me && p.con <= 1 && E.ovr(p) >= xiAvg()); if (exp.length) t.push(['&#128221;', `${sname(exp[0])}'s contract ends this season. Extend it or he leaves for free.`]);
   return t;
 }
-function asstHTML() { if (isC()) return ''; const t = asstTips().slice(0, 3); return `<div class="card" id="asstCard"><h3>&#129489;&#8205;&#128188; Assistant manager</h3>${t.length ? t.map(x => `<div class="tip"><span>${x[0]}</span><span class="small">${x[1]}</span></div>`).join('') : '<p class="small mut">All good, boss. Nothing to worry about.</p>'}</div>`; }
+function asstHTML() { if (isC()) return ''; const t = asstTips().slice(0, 3); return `<div class="card" id="asstCard"><h3>&#129489;&#8205;&#128188; Assistant manager</h3>${t.length ? t.map(x => `<div class="tip"><span>${x[0]}</span><span class="small">${esc(x[1])}</span></div>`).join('') : '<p class="small mut">All good, boss. Nothing to worry about.</p>'}</div>`; }
 function paceStrip() { if (!S.pace) return ''; paceSync(); const p = S.pace, on = paceOn(); return `<div class="pstrip" id="paceStrip" data-act="tickets"><span class="tkts">${Array.from({ length: PACE.max }, (_, i) => `<i class="tkt ${i < p.n ? 'on' : ''}"></i>`).join('')}</span><b>${p.n}/${PACE.max} match tickets</b><span class="sp"></span><span class="tiny mut">${on ? (p.n >= PACE.max ? 'Full' : 'Next in ' + dur(nextTicketIn())) : 'Test mode'}</span></div>`; }
 /* ----- after a match ----- */
 function v8after(info) {
@@ -3581,7 +3610,7 @@ function scoutHTML() {
   return `<div class="card" id="scoutCard"><h3>&#128269; Scouting network</h3><p class="small mut" style="margin:4px 0 8px">Send a scout to a region. Reports take ${scoutHours()} real hours and cost ${fmt(scoutCost())} coins. Scouts: ${S.scouts.length}/${scoutSlots()} busy (upgrade the Scouting Network for more and faster scouts).</p>
   ${free > 0 ? `<div class="flts"><label class="flt"><span class="small mut">Region</span><select id="scReg">${Object.keys(REGIONS).map(k => `<option value="${k}">${REGIONS[k][0]}</option>`).join('')}</select></label><label class="flt"><span class="small mut">Position</span><select id="scPos"><option value="ANY">Any</option>${E.DPOS.map(p => `<option value="${p}">${p} - ${E.DPOS_NAME[p]}</option>`).join('')}</select></label><label class="flt"><span class="small mut">Current rating</span><select id="scBand">${['ANY', '60', '70', '80'].map(k => `<option value="${k}">${SC_BAND[k][0]}${k !== 'ANY' ? ' (' + fmt(scoutCost(k)) + ', ' + scoutDurH(k) + 'h)' : ''}</option>`).join('')}</select></label></div><p class="tiny mut" style="margin:0 0 8px">${Object.keys(REGIONS).map(k => '<b>' + REGIONS[k][0] + '</b>: ' + REGIONS[k][1]).join(' &middot; ')}</p><button class="btn pri" data-act="scgo" id="scoutGo" ${S.coins < scoutCost() ? 'disabled' : ''}>Send scout ${coinHTML} ${fmt(scoutCost())}</button>` : ''}
   ${S.scouts.map(s => `<div class="auc" id="sc-${s.id}"><div class="row"><span class="sp small"><b>${REGIONS[s.reg][0]}</b> &middot; ${s.pos === 'ANY' ? 'any position' : (E.DPOS_NAME[s.pos] || s.pos)} &middot; report in <b class="cd" data-end="${s.end}">${dur(s.end - now)}</b></span></div>${rushBtns('sc', s.id, s.end, SCOUT.rush, TOK.scoutRush, '3h')}${pbHTML(s.start, s.end)}</div>`).join('')}
-  ${S.reports.map(rp => `<div class="rep" id="rep-${rp.id}"><h4 class="small mut" style="margin:10px 0 4px">REPORT: ${REGIONS[rp.reg][0].toUpperCase()} &middot; ${rp.pos && rp.pos !== 'ANY' ? rp.pos : 'ANY POSITION'}${rp.band && rp.band !== 'ANY' ? ' &middot; ' + scBand(rp.band)[0].toUpperCase() : ''}</h4>${rp.players.length ? rp.players.map(p => `<div class="row repp"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${dpTag(p)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${coinHTML}${fmt(p.price)}</div><div class="tiny" style="color:var(--amber)">${esc(p.note)}</div></div>${S.squad.some(x => x.id === p.id) ? '<span class="tiny mut scst">Signed</span>' : p.listed ? '<span class="tiny mut scst">On market</span>' : `<button class="btn sm" data-act="scshort" data-v="${rp.id}" data-pid="${p.id}">To market</button>`}</div>`).join('') : '<p class="tiny mut">All moved to the market.</p>'}</div>`).join('')}</div>`;
+  ${S.reports.map(rp => `<div class="rep" id="rep-${esc(rp.id)}"><h4 class="small mut" style="margin:10px 0 4px">REPORT: ${REGIONS[rp.reg][0].toUpperCase()} &middot; ${rp.pos && rp.pos !== 'ANY' ? esc(rp.pos) : 'ANY POSITION'}${rp.band && rp.band !== 'ANY' ? ' &middot; ' + scBand(rp.band)[0].toUpperCase() : ''}</h4>${rp.players.length ? rp.players.map(p => `<div class="row repp"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${dpTag(p)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${coinHTML}${fmt(p.price)}</div><div class="tiny" style="color:var(--amber)">${esc(p.note)}</div></div>${S.squad.some(x => x.id === p.id) ? '<span class="tiny mut scst">Signed</span>' : p.listed ? '<span class="tiny mut scst">On market</span>' : `<button class="btn sm" data-act="scshort" data-v="${esc(rp.id)}" data-pid="${esc(p.id)}">To market</button>`}</div>`).join('') : '<p class="tiny mut">All moved to the market.</p>'}</div>`).join('')}</div>`;
 }
 /* ----- youth academy ----- */
 function acadIntake() {
@@ -3593,7 +3622,7 @@ function acadPromote(pid) { const p = S.academy.find(x => x.id === pid); if (!p)
 function acadRelease(pid) { S.academy = S.academy.filter(x => x.id !== pid); save(); render(); }
 function acadHTML() {
   acadIntake(); return `<div class="card" id="acadCard"><h3>&#127891; Youth academy &middot; level ${S.up.youth}</h3><p class="small mut" style="margin:4px 0 8px">${acadN(S.up.youth)} new prospects arrive every season. Promote the best to your squad (they play and train with the first team) or release them. Academy places: ${S.academy.length}/6.</p>
-  ${S.academy.length ? S.academy.map(p => `<div class="row repp" id="ac-${p.id}"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${dpTag(p)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} ${stars(p.pot)}</div></div><button class="btn pri sm" data-act="acpro" data-v="${p.id}">Promote</button><button class="btn sm" data-act="acrel" data-v="${p.id}">Release</button></div>`).join('') : '<p class="small mut">No prospects right now. The next intake arrives at the start of next season.</p>'}</div>`;
+  ${S.academy.length ? S.academy.map(p => `<div class="row repp" id="ac-${esc(p.id)}"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${dpTag(p)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} ${stars(p.pot)}</div></div><button class="btn pri sm" data-act="acpro" data-v="${esc(p.id)}">Promote</button><button class="btn sm" data-act="acrel" data-v="${esc(p.id)}">Release</button></div>`).join('') : '<p class="small mut">No prospects right now. The next intake arrives at the start of next season.</p>'}</div>`;
 }
 /* ----- facility builds ----- */
 function buildSync() { const b = S.build; if (!b || NOW() < b.end) return; S.up[b.k] = b.to; if (b.to >= 3) unlock('upgrade3'); S.build = null; setTimeout(() => toast(`${UPG[b.k].name} is now level ${b.to}!`), 200); }
