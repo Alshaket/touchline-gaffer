@@ -2503,7 +2503,7 @@ document.addEventListener('click', e => {
     case 'momgo': momTap(); break;
   }
 });
-window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason(), ff: ms => devFF(ms), paceSync: () => paceSync(), paceOn: () => paceOn(), search: f => doSearch(f), tokens: () => showTokens(), bcFinish: q => bcFinish(q), asst: () => asstTips(), talk: k => doTalk(k, myFixture()), chat: (id, k) => doChat(id, k), sync: () => v9sync(), aucTop: () => aucTop(), friendly: k => playFriendly(k), acadIntake: () => acadIntake(), bcOn: () => bcOn() } }; // debug handle used by the headless test
+window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, showWait: () => showWait(), myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason(), ff: ms => devFF(ms), paceSync: () => paceSync(), paceOn: () => paceOn(), search: f => doSearch(f), tokens: () => showTokens(), bcFinish: q => bcFinish(q), asst: () => asstTips(), talk: k => doTalk(k, myFixture()), chat: (id, k) => doChat(id, k), sync: () => v9sync(), aucTop: () => aucTop(), friendly: k => playFriendly(k), acadIntake: () => acadIntake(), bcOn: () => bcOn() } }; // debug handle used by the headless test
 
 /* ---------- training sessions (before each match) + mini games ---------- */
 const MAX_SESS = 3; // 1 free + 2 extra (rewarded ad placeholder) per matchday
@@ -3079,11 +3079,11 @@ function paceTake() {
 }
 function showWait() {
   const ad = dayN('ads');
-  modal(`<div id="waitModal"><h2>Your players need a rest</h2><p>You have used all ${PACE.max} match tickets. The next one is ready in <b id="waitT">${dur(nextTicketIn())}</b>.</p>
+  modal(`<div id="waitModal"><h2>Your players need a rest</h2><p>You have used all ${PACE.max} match tickets. The next one is ready in <b id="waitT" class="cd" data-end="${NOW() + nextTicketIn()}">${dur(nextTicketIn())}</b>.</p>
   <p class="small mut">Real clubs don't play every few minutes. Come back later: fitness keeps recovering while you're away (+${PACE.fitPerH} an hour). Use the time to train, scout and set your lineup.</p>
   <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button class="btn pri" data-act="pskip" id="btnKickNow" ${S.tok < TOK.skip ? 'disabled' : ''}>Kick off now ${tokHTML} ${TOK.skip}</button>
   <button class="btn ad" data-act="pad" id="btnWaitAd" ${ad.n >= PACE.adMax ? 'disabled' : ''}><span class="adtag">AD</span>1 hour sooner (${PACE.adMax - ad.n} left today)</button>
-  <button class="btn" data-act="close">Later</button></div><p class="tiny mut">You have ${fmt(S.tok)} tokens.</p></div>`);
+  <button class="btn" data-act="close">Later</button></div><p class="tiny ${S.tok < TOK.skip ? '' : 'mut'}" id="waitTok" ${S.tok < TOK.skip ? 'style="color:var(--amber)"' : ''}>You have ${fmt(S.tok)} tokens.${S.tok < TOK.skip ? ` Kick off now needs ${TOK.skip}. Earn more in Shop &gt; Tokens.` : ''}</p></div>`);
 }
 function paceCard() {
   if (!S.pace) v7init(S); paceSync(); const p = S.pace, on = paceOn();
@@ -3156,7 +3156,7 @@ function v7act(act, v, b) {
     case 'tokens': showTokens(); return true;
     case 'tsearch': showSearch(); return true;
     case 'dosearch': { const f = { pos: $('#fPos').value, min: $('#fMin').value, age: $('#fAge').value, price: $('#fPrice').value }; const res = doSearch(f); if (res && res.length) { closeModal(true); if (tab !== 'shop') navTab('shop'); shopTab = 'transfers'; render(); $('#view').scrollTop = 0; toast('Scouts found ' + res.length + ' player' + (res.length > 1 ? 's' : '') + '. They are at the top of the market.'); } else if (res) showSearch(); return true; }
-    case 'pskip': if (spendTok(TOK.skip, 'Kicking off now')) { S.pace.n++; save(); closeModal(true); openMatch(); } return true;
+    case 'pskip': if (spendTok(TOK.skip, 'Kicking off now')) { S.pace.n++; save(); closeModal(true); toast(`Kick off now: -${TOK.skip} tokens.`); openMatch(); } return true;
     case 'pad': { const o = dayN('ads'); if (o.n >= PACE.adMax || adBusy) return true; adBusy = true; rewarded('match_ticket', () => { adBusy = false; o.n++; S.pace.at -= PACE.adCut; paceSync(); save(); closeModal(true); render(); toast(S.pace.n ? 'A match ticket is ready!' : 'Next match ticket in ' + dur(nextTicketIn())); }, () => { adBusy = false; }); return true; }
     case 'tokad': { const o = dayN('tads'); if (o.n >= TOK.adMax || adBusy) return true; adBusy = true; rewarded('free_tokens', () => { adBusy = false; o.n++; S.tok += TOK.ad; save(); renderTop(); if (!$('#overlay').hidden && $('#tokCard')) showTokens(); else render(); toast('+' + TOK.ad + ' tokens!'); }, () => { adBusy = false; }); return true; }
     case 'pboost': if (S.live) return true; if (!S.squad.some(p => p.fit < 100)) { toast('Everyone is already fully fit.'); return true; } if (spendTok(TOK.booster, 'A recovery booster')) { S.squad.forEach(p => { p.fit = Math.min(100, p.fit + TOK.boost); }); save(); render(); toast('Recovery booster: +' + TOK.boost + ' fitness for the whole squad.'); } return true;
@@ -3439,7 +3439,16 @@ function scoutSend(reg, pos) {
   if (S.coins < scoutCost()) return toast('Not enough coins.'); S.coins -= scoutCost();
   const now = NOW(); S.scouts.push({ id: 's' + now.toString(36) + Math.floor(Math.random() * 1e4), reg, pos: pos || 'ANY', start: now, end: now + scoutHours() * 3600e3, rush: 0 }); save(); render(); renderTop(); toast(`Scout sent to ${REGIONS[reg][0]}. Report in ${scoutHours()} hours.`);
 }
-function scoutRush(id) { const s = S.scouts.find(x => x.id === id); if (!s || s.rush) return; if (!spendTok(TOK.scoutRush, 'Rushing a report')) return; s.end -= SCOUT.rush; s.rush = 1; scoutSync(); save(); render(); }
+/* token speed-ups (scout + build). Repeatable; 'finish now' costs the speed-up price per started block of time left. */
+const finCost = (rem, blk, c) => Math.max(c, Math.ceil(Math.max(0, rem) / blk) * c);
+function rushBtns(kind, id, end, blk, c, lbl) {
+  const rem = end - NOW(), fc = finCost(rem, blk, c), tk = S.tok || 0, sh = tk < c;
+  return `<div class="row rushrow" style="gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn sm" data-act="${kind}rush" data-v="${id}" id="${kind}rush-${id}" ${sh ? 'disabled' : ''}>&#9889; ${lbl} sooner ${tokHTML}${c}</button><button class="btn sm pri" data-act="${kind}fin" data-v="${id}" id="${kind}fin-${id}" ${tk < fc ? 'disabled' : ''}>Finish now ${tokHTML}${fc}</button></div>${tk < c ? `<p class="tiny" style="color:var(--amber);margin:4px 0 0" id="${kind}short-${id}">Not enough tokens: speeding up needs ${c}, you have ${fmt(tk)}. Earn more in Shop &gt; Tokens.</p>` : tk < fc ? `<p class="tiny mut" style="margin:4px 0 0" id="${kind}short-${id}">Finish now needs ${fc} tokens (you have ${fmt(tk)}).</p>` : ''}`;
+}
+function scoutRush(id, fin) { const s = S.scouts.find(x => x.id === id); if (!s) return; const rem = s.end - NOW(), c = fin ? finCost(rem, SCOUT.rush, TOK.scoutRush) : TOK.scoutRush; if (!spendTok(c, fin ? 'Finishing the report now' : 'Rushing a report')) return; s.end = fin ? NOW() - 1 : s.end - SCOUT.rush; s.rush = (+s.rush || 0) + 1; const done = s.end <= NOW(); scoutSync(); save(); render(); renderTop(); if (!done) toast(`Report 3 hours sooner (-${c} tokens). Now ready in ${dur(s.end - NOW())}.`); }
+function buildRush(fin) { const bd = S.build; if (!bd) return; const rem = bd.end - NOW(), c = fin ? finCost(rem, BUILD_RUSH, TOK.buildRush) : TOK.buildRush; if (!spendTok(c, fin ? 'Finishing the build now' : 'Rushing a build')) return; bd.end = fin ? NOW() - 1 : bd.end - BUILD_RUSH; bd.rush = (+bd.rush || 0) + 1; const done = bd.end <= NOW(); buildSync(); save(); render(); renderTop(); if (!done) toast(`Build 2 hours sooner (-${c} tokens). Now ready in ${dur(bd.end - NOW())}.`); }
+/* live countdowns: any <b class="cd" data-end> ticks every second */
+setInterval(() => { document.querySelectorAll('.cd[data-end]').forEach(el => { el.textContent = dur(+el.dataset.end - NOW()); }); }, 1000);
 function scoutSync() {
   const now = NOW(); S.scouts = S.scouts.filter(s => {
     if (now < s.end) return true;
@@ -3456,7 +3465,7 @@ function scoutHTML() {
   scoutSync(); const now = NOW(), free = scoutSlots() - S.scouts.length;
   return `<div class="card" id="scoutCard"><h3>&#128269; Scouting network</h3><p class="small mut" style="margin:4px 0 8px">Send a scout to a region. Reports take ${scoutHours()} real hours and cost ${fmt(scoutCost())} coins. Scouts: ${S.scouts.length}/${scoutSlots()} busy (upgrade the Scouting Network for more and faster scouts).</p>
   ${free > 0 ? `<div class="flts"><label class="flt"><span class="small mut">Region</span><select id="scReg">${Object.keys(REGIONS).map(k => `<option value="${k}">${REGIONS[k][0]}</option>`).join('')}</select></label><label class="flt"><span class="small mut">Position</span><select id="scPos"><option value="ANY">Any</option>${POSN.map(p => `<option>${p}</option>`).join('')}</select></label></div><p class="tiny mut" style="margin:0 0 8px">${Object.keys(REGIONS).map(k => '<b>' + REGIONS[k][0] + '</b>: ' + REGIONS[k][1]).join(' &middot; ')}</p><button class="btn pri" data-act="scgo" id="scoutGo" ${S.coins < scoutCost() ? 'disabled' : ''}>Send scout ${coinHTML} ${fmt(scoutCost())}</button>` : ''}
-  ${S.scouts.map(s => `<div class="auc" id="sc-${s.id}"><div class="row"><span class="sp small"><b>${REGIONS[s.reg][0]}</b> &middot; ${s.pos === 'ANY' ? 'any position' : s.pos} &middot; report in <b>${dur(s.end - now)}</b></span><button class="btn sm" data-act="scrush" data-v="${s.id}" id="scrush-${s.id}" ${s.rush ? 'disabled' : ''}>-3h ${tokHTML}${TOK.scoutRush}</button></div><div class="pb"><i style="width:${E.clamp((now - s.start) / (s.end - s.start) * 100, 0, 100)}%"></i></div></div>`).join('')}
+  ${S.scouts.map(s => `<div class="auc" id="sc-${s.id}"><div class="row"><span class="sp small"><b>${REGIONS[s.reg][0]}</b> &middot; ${s.pos === 'ANY' ? 'any position' : s.pos} &middot; report in <b class="cd" data-end="${s.end}">${dur(s.end - now)}</b></span></div>${rushBtns('sc', s.id, s.end, SCOUT.rush, TOK.scoutRush, '3h')}<div class="pb"><i style="width:${E.clamp((now - s.start) / (s.end - s.start) * 100, 0, 100)}%"></i></div></div>`).join('')}
   ${S.reports.map(rp => `<div class="rep" id="rep-${rp.id}"><h4 class="small mut" style="margin:10px 0 4px">REPORT: ${REGIONS[rp.reg][0].toUpperCase()}</h4>${rp.players.length ? rp.players.map(p => `<div class="row repp"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${posTag(p.pos)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${coinHTML}${fmt(p.price)}</div><div class="tiny" style="color:var(--amber)">${esc(p.note)}</div></div><button class="btn sm" data-act="scshort" data-v="${rp.id}" data-pid="${p.id}">To market</button></div>`).join('') : '<p class="tiny mut">All moved to the market.</p>'}</div>`).join('')}</div>`;
 }
 /* ----- youth academy ----- */
@@ -3475,7 +3484,7 @@ function acadHTML() {
 function buildSync() { const b = S.build; if (!b || NOW() < b.end) return; S.up[b.k] = b.to; if (b.to >= 3) unlock('upgrade3'); S.build = null; setTimeout(() => toast(`${UPG[b.k].name} is now level ${b.to}!`), 200); }
 function buildHTML() {
   buildSync(); const b = S.build; if (!b) return paceOn() ? `<p class="tiny mut" id="buildNote" style="margin:0 0 8px">Upgrades take real time to build (2-8 hours). One build at a time.</p>` : '';
-  const now = NOW(); return `<div class="card" id="buildCard"><h3>&#127959; Building: ${UPG[b.k].name} level ${b.to}</h3><div class="row"><span class="sp small">Ready in <b>${dur(b.end - now)}</b></span><button class="btn sm" data-act="brush" id="btnRush" ${b.rush >= BUILD_MAXRUSH ? 'disabled' : ''}>-2h ${tokHTML}${TOK.buildRush}</button></div><div class="pb"><i style="width:${E.clamp((now - b.start) / (b.end - b.start) * 100, 0, 100)}%"></i></div></div>`;
+  const now = NOW(); return `<div class="card" id="buildCard"><h3>&#127959; Building: ${UPG[b.k].name} level ${b.to}</h3><div class="row"><span class="sp small">Ready in <b class="cd" data-end="${b.end}">${dur(b.end - now)}</b></span></div>${rushBtns('b', 'build', b.end, BUILD_RUSH, TOK.buildRush, '2h').replace('id="brush-build"', 'id="btnRush"').replace('id="bfin-build"', 'id="btnFinish"')}<div class="pb"><i style="width:${E.clamp((now - b.start) / (b.end - b.start) * 100, 0, 100)}%"></i></div></div>`;
 }
 /* ----- friendlies ----- */
 function frState() { if (!S.fr || S.fr.ci !== S.ci) S.fr = { ci: S.ci, n: 0 }; return S.fr; }
@@ -3510,10 +3519,12 @@ function v9act(act, v, b) {
     case 'aext': aucExt(v); return true;
     case 'scgo': scoutSend($('#scReg').value, $('#scPos').value); return true;
     case 'scrush': scoutRush(v); return true;
+    case 'scfin': scoutRush(v, true); return true;
+    case 'bfin': buildRush(true); return true;
     case 'scshort': scoutShort(v, b.dataset.pid); return true;
     case 'acpro': acadPromote(v); return true;
     case 'acrel': acadRelease(v); return true;
-    case 'brush': { const bd = S.build; if (!bd || bd.rush >= BUILD_MAXRUSH) return true; if (spendTok(TOK.buildRush, 'Rushing a build')) { bd.end -= BUILD_RUSH; bd.rush++; buildSync(); save(); render(); } return true; }
+    case 'brush': buildRush(false); return true;
     case 'friendly': { const o = playFriendly(v); if (o) showFriendly(o); return true; }
     case 'bctoggle': S.settings.bc = S.settings.bc === false; save(); showSettings(); return true;
   }
