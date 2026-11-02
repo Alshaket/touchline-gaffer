@@ -164,7 +164,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .adbox .pb{height:8px;background:#ddd;border-radius:5px;margin:12px 0;overflow:hidden}.adbox .pb i{display:block;height:100%;width:0;background:#1d73d6;transition:width 2.4s linear}
 /* desktop */
 @media (min-width:900px){
-  #app{max-width:1180px;grid-template-columns:200px 1fr;grid-template-areas:"top top" "tabs view";grid-template-rows:auto 1fr;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  #app{max-width:1180px;grid-template-columns:200px minmax(0,1fr);grid-template-areas:"top top" "tabs view";grid-template-rows:auto 1fr;border-left:1px solid var(--line);border-right:1px solid var(--line)}
   #tabs{grid-template-columns:1fr;grid-auto-rows:min-content;align-content:start;border-top:0;border-right:1px solid var(--line);padding:10px 8px}
   #tabs button{flex-direction:row;gap:12px;padding:12px;font-size:14px;border-radius:12px;justify-content:flex-start}
   #tabs button.on{background:var(--panel)}
@@ -524,6 +524,17 @@ body.lowtoast #toast{top:auto;bottom:18px}
 .bcm{max-width:420px;margin:auto}
 .bcarrow{z-index:2;top:2px}.bcarrow.on{font-size:44px;text-shadow:0 2px 6px #000}.bcarrow.d0{left:15%}.bcarrow.d1{left:50%}.bcarrow.d2{left:85%}.bcgoal .bckp.me{height:55%}
 
+/* ---------- v9: auctions, scouting, academy, builds, friendlies ---------- */
+.segx{overflow-x:auto;scrollbar-width:none}.segx button{flex:1 0 auto;padding:8px 9px;white-space:nowrap}
+.auc{background:var(--panel2);border-radius:10px;padding:8px 10px;margin:8px 0}.auc.done{opacity:.65}.auc.won{outline:2px solid var(--green);opacity:1}
+.aov{width:36px;height:36px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-weight:900;margin-right:8px}
+.atime{display:flex;flex-direction:column;align-items:flex-end}.atime b{font-variant-numeric:tabular-nums}.atime b.hot{color:var(--red)}.atime small{font-size:10px;color:var(--mut)}
+.auc .row .btn{margin-left:6px}
+.pb{height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:6px}.pb i{display:block;height:100%;background:var(--green)}
+.repp{margin:6px 0;gap:6px}
+.flt{min-width:0}.flt select{width:100%;min-width:0}.repp .sp,.auc .sp{min-width:0}.repp .btn{flex:0 0 auto;white-space:nowrap}
+@media (max-width:899px){#app{grid-template-columns:minmax(0,1fr)}#topbar .chip{padding:5px 9px}#topbar{gap:7px}}
+
 </style>
 </head>
 <body>
@@ -615,6 +626,9 @@ function wage(p) { const q = valueParts(p); return Math.max(WAGE.min, Math.round
 const conFor = (age, rnd) => age >= 33 ? 1 : age >= 30 ? ri(rnd, 1, 2) : age <= 21 ? ri(rnd, 2, 4) : ri(rnd, 1, 4);
 /* ---------- transfer negotiation (pure, seeded, testable) ---------- */
 const round10 = v => Math.max(10, Math.round(v / 10) * 10);
+/* v9: negotiation rounding scales with the fee, so cheap players can still be haggled over (a 10-coin minimum step was 12% of an 80-coin player) */
+const roundN = v => v < 100 ? Math.max(1, Math.round(v)) : v < 1000 ? Math.max(5, Math.round(v / 5) * 5) : Math.max(10, Math.round(v / 10) * 10);
+const negStep = v => Math.max(v < 100 ? 2 : v < 1000 ? 5 : 10, roundN(v * 0.05));
 /* chance that a BUYING club accepts your asking price: ratio = ask / market value. 1.04x value is a coin flip; coach level helps a little */
 function sellChance(ratio, lvl, eager) { const r = ratio - 0.01 * ((lvl || 1) - 1) - (eager || 0); return clamp(1 / (1 + Math.exp((r - 1.04) / 0.08)), 0.02, 0.97); }
 /* chance that the SELLING club accepts your bid: ratio = bid / asking price (a full-price bid is always accepted) */
@@ -629,7 +643,7 @@ function negotiate(kind, o) {
   const roll = negRoll(o.seed, o.round + '|' + o.ask);
   if (roll < chance) return { result: 'accept', price: o.ask, chance };
   if (o.round < 2 && roll < chance + 0.3) {
-    const mid = round10(o.offer + (o.ask - o.offer) * 0.5);
+    const mid = roundN(o.offer + (o.ask - o.offer) * 0.5);
     if (kind === 'sell' ? mid > o.offer : mid < o.offer) return { result: 'counter', price: mid, chance };
   }
   return { result: 'reject', price: o.offer, chance };
@@ -1015,7 +1029,7 @@ function factors(you, them, youHome) {
   rows.push(['Team spirit', Math.round(you.coh == null ? 50 : you.coh), Math.round(them.coh == null ? 50 : them.coh), (cohFactor(you.coh) / cohFactor(them.coh) - 1) * 100, 'spirit']);
   return rows;
 }
-root.Engine = { wage, WAGE, conFor, DEV, devDelta, shiftOvr, preview, factors, WEEKS, clamp, mulberry32, hashStr, ri, pick, FORMATIONS, FORMATION_NOTE, MENTALITY, MAIN, FOCUS, makePlayer, makeYouth, makeStars, ovr, ovrFor, effRating, value, valueParts, VAL, round10, sellChance, buyChance, negotiate, pickScore, rankScore, lineupHints, TRAIN, genSquad, autoPick, teamPower, slotsFor, COH, cohFactor, formEdge, shapeOf, LUCK, createMatch, step, simFull, recompute, shootout, ratings, lineText, T, MENT_PHRASE, MENT_SHORT, pstOf, roundRobin, emptyRow, applyResult, sortTable, trainTick, seasonDevelop, CAL, expectedScore, LUCK_SHARE };
+root.Engine = { roundN, negStep, wage, WAGE, conFor, DEV, devDelta, shiftOvr, preview, factors, WEEKS, clamp, mulberry32, hashStr, ri, pick, FORMATIONS, FORMATION_NOTE, MENTALITY, MAIN, FOCUS, makePlayer, makeYouth, makeStars, ovr, ovrFor, effRating, value, valueParts, VAL, round10, sellChance, buyChance, negotiate, pickScore, rankScore, lineupHints, TRAIN, genSquad, autoPick, teamPower, slotsFor, COH, cohFactor, formEdge, shapeOf, LUCK, createMatch, step, simFull, recompute, shootout, ratings, lineText, T, MENT_PHRASE, MENT_SHORT, pstOf, roundRobin, emptyRow, applyResult, sortTable, trainTick, seasonDevelop, CAL, expectedScore, LUCK_SHARE };
 if (typeof module !== 'undefined') module.exports = root.Engine;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1081,7 +1095,7 @@ const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + St
 const yesterdayStr = () => { const d = new Date(Date.now() - 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const KEYS = [KEY, 'touchlinegaffer.slot2', 'touchlinegaffer.slot3']; let SLOT = 0, titleView = 'main', newPos = 'FWD';
 function save() { try { localStorage.setItem(KEYS[SLOT], JSON.stringify(S)); localStorage.setItem('touchlinegaffer.lastslot', String(SLOT)); } catch (e) {} }
-function load(i) { try { const s = JSON.parse(localStorage.getItem(KEYS[i == null ? SLOT : i])); return s && s.v >= 1 && s.v <= 8 ? migrate(s) : null; } catch (e) { return null; } }
+function load(i) { try { const s = JSON.parse(localStorage.getItem(KEYS[i == null ? SLOT : i])); return s && s.v >= 1 && s.v <= 9 ? migrate(s) : null; } catch (e) { return null; } }
 const byId = () => { const m = {}; S.squad.forEach(p => m[p.id] = p); return m; };
 const P = id => S.squad.find(p => p.id === id);
 const sname = p => p.first[0] + '. ' + p.last;
@@ -1194,7 +1208,7 @@ function newGame(name, colorIdx) {
   const r = Math.random;
   const squad = E.genSquad(59, r, { formation: '3-4-3' });
   S = {
-    v: 8, mode: 'manager', club: { name: name || 'Harbor Lights FC', short: (name || 'HLF').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'HLF', c: COLORS[colorIdx || 0], pat: colorIdx % 4 || 0, id: 'me' },
+    v: 9, mode: 'manager', club: { name: name || 'Harbor Lights FC', short: (name || 'HLF').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'HLF', c: COLORS[colorIdx || 0], pat: colorIdx % 4 || 0, id: 'me' },
     coins: 500, season: 1, tier: 0, week: 0, squad, formation: '3-4-3', mentality: 'balanced', lineup: squad.slice(0, 11).map(p => p.id), training: 'attack',
     up: { train: 1, stadium: 1, scout: 1 }, league: null, market: [], daily: { last: '', streak: 0 }, history: [], trophies: 0,
     last: null, endSummary: null, form: [], settings: { mute: false, speed: 1 }, seen: {}, totalWins: 0,
@@ -1202,7 +1216,7 @@ function newGame(name, colorIdx) {
     star: { cands: E.makeStars(r), done: false }, coach: { xp: 0, lvl: 1 }, autoXI: true, neg: null, sales: 0, ucl: null, uclNext: false, uclWon: 0, board: null
   };
   S.star.cands.forEach(p => p.con = 3);
-  v7init(S); v8init(S); setupSeason(); genMarket(); save();
+  v7init(S); v8init(S); v9init(S); setupSeason(); genMarket(); save();
 }
 function migrate(s) {
   if (s.v === 1) {
@@ -1227,6 +1241,8 @@ function migrate(s) {
   v7init(s);
   if (s.v === 7) { v8init(s); s.v = 8; } // v8: training intensity/drill, press-board event queue, team talks, morale chats
   v8init(s);
+  if (s.v === 8) { v9init(s); s.v = 9; } // v9: auctions, scouting missions/reports, youth academy, facility builds, friendlies
+  v9init(s);
   (s.market || []).forEach(p => { if (!p.club) p.club = clubNameFor(p.id, s.club && s.club.name); });
   if (s.coh == null) s.coh = 50;
   (s.squad || []).forEach(pstat);
@@ -1427,7 +1443,7 @@ function buyPlayer(id) {
 }
 /* ---------- transfers: selling and buying are negotiated with the other club ---------- */
 let NEGUI = { open: null, ask: 0, bid: 0 };
-const stepOf = v => Math.max(10, E.round10(v * 0.05));
+const stepOf = v => E.negStep(v);
 function sellBlock(p) {
   if (isC()) return 'Selling is only available in Manager mode.';
   if (S.live) return 'A match is in progress. Finish it first.';
@@ -1445,7 +1461,7 @@ function sellWarnings(p) {
 function negClubs(key, val) { // three interested clubs, stable for this player on this matchday (seeded)
   return POOL.filter(c => c.name !== S.club.name).sort((a, b) => E.hashStr(key + a.id) - E.hashStr(key + b.id)).slice(0, 3).map(c => {
     const r = E.mulberry32(E.hashStr(key + '|' + c.id));
-    return { id: c.id, name: c.name, short: c.short, c: c.c, pat: c.pat, offer: E.round10(val * (0.84 + r() * 0.2)), eager: Math.round((r() - 0.5) * 0.1 * 100) / 100, round: 0, out: false, msg: '' };
+    return { id: c.id, name: c.name, short: c.short, c: c.c, pat: c.pat, offer: E.roundN(val * (0.84 + r() * 0.2)), eager: Math.round((r() - 0.5) * 0.1 * 100) / 100, round: 0, out: false, msg: '' };
   });
 }
 function startSell(pid) {
@@ -1461,7 +1477,7 @@ function renderSell() {
   const N = S.neg; if (!N || N.kind !== 'sell') return closeModal(); const p = P(N.pid);
   if (N.sold) { const d = N.sold; return modal(`<div id="negView"><h2>Sold!</h2><p><b>${esc(d.name)}</b> joins <b>${esc(d.club)}</b> for ${coinHTML} <b>${fmt(d.price)}</b>.</p><p class="small mut">His market value was ${fmt(d.val)}: you got ${d.price >= d.val ? Math.round((d.price / d.val - 1) * 100) + '% above' : Math.round((1 - d.price / d.val) * 100) + '% below'} it.${d.xp ? ' Coach XP +' + d.xp + '.' : ''}</p><button class="btn pri big" data-act="close" id="btnNegDone">Done</button></div>`); }
   if (!p) return closeModal();
-  const live = E.value(p); if (live !== N.value) { const k = live / N.value; N.clubs.forEach(c => { c.offer = Math.max(10, E.round10(c.offer * k)); }); N.value = live; }
+  const live = E.value(p); if (live !== N.value) { const k = live / N.value; N.clubs.forEach(c => { c.offer = E.roundN(c.offer * k); }); N.value = live; }
   const wr = sellWarnings(p), alive = N.clubs.filter(c => !c.out);
   const club = (c, i) => {
     const open = NEGUI.open === i;
@@ -1489,9 +1505,9 @@ function completeSale(p, price, c) {
 }
 function sellAction(act, v) {
   const N = S.neg; if (!N || N.kind !== 'sell') return; const p = P(N.pid); if (!p) return;
-  if (act === 'negopen') { const c = N.clubs[+v]; NEGUI.open = +v; NEGUI.ask = Math.max(c.offer + 10, E.round10(N.value * 1.1)); }
-  else if (act === 'negstep') { const c = N.clubs[NEGUI.open]; NEGUI.ask = Math.max(c.offer + 10, NEGUI.ask + (+v) * stepOf(N.value)); }
-  else if (act === 'negpreset') { const c = N.clubs[NEGUI.open]; NEGUI.ask = Math.max(c.offer + 10, E.round10(N.value * +v)); }
+  if (act === 'negopen') { const c = N.clubs[+v]; NEGUI.open = +v; NEGUI.ask = Math.max(c.offer + stepOf(N.value), E.roundN(N.value * 1.1)); }
+  else if (act === 'negstep') { const c = N.clubs[NEGUI.open]; NEGUI.ask = Math.max(c.offer + stepOf(N.value), NEGUI.ask + (+v) * stepOf(N.value)); }
+  else if (act === 'negpreset') { const c = N.clubs[NEGUI.open]; NEGUI.ask = Math.max(c.offer + stepOf(N.value), E.roundN(N.value * +v)); }
   else if (act === 'negaccept') { const c = N.clubs[+v]; if (!c.out) return completeSale(p, c.offer, c); }
   else if (act === 'negcounter') {
     const c = N.clubs[+v], r = E.negotiate('sell', { value: N.value, offer: c.offer, ask: NEGUI.ask, seed: N.key + '|' + c.id, round: c.round, lvl: coachLvl(), eager: c.eager });
@@ -1502,10 +1518,10 @@ function sellAction(act, v) {
   }
   renderSell();
 }
-function startBuy(pid) { const p = S.market.find(x => x.id === pid); if (!p) return; NEGUI = { open: 'buy', ask: 0, bid: Math.max(10, E.round10(p.price * 0.9)), pid }; renderBuy(pid); }
+function startBuy(pid) { const p = S.market.find(x => x.id === pid); if (!p) return; NEGUI = { open: 'buy', ask: 0, bid: E.roundN(p.price * 0.9), pid }; renderBuy(pid); }
 function renderBuy(pid) {
   const p = S.market.find(x => x.id === pid); if (!p) return closeModal();
-  const ask = p.price, val = E.value(p), bid = Math.min(ask, NEGUI.bid || E.round10(ask * 0.9)), ch = E.buyChance(bid / ask, coachLvl()), cp = Math.round(ch * 100), rt = (bid / ask - 1) * 100, out = !!p.negOut, can = S.coins >= ask;
+  const ask = p.price, val = E.value(p), bid = Math.min(ask, NEGUI.bid || E.roundN(ask * 0.9)), ch = E.buyChance(bid / ask, coachLvl()), cp = Math.round(ch * 100), rt = (bid / ask - 1) * 100, out = !!p.negOut, can = S.coins >= ask;
   modal(`<div id="negView"><h2>Sign ${esc(p.last)}</h2>${negHead(p, 'Asking price', ask, `<span class="tiny mut">Currently at <b>${esc(p.club || 'a rival club')}</b>. Market value ${fmt(val)}.</span>`)}
     ${p.nmsg ? `<div class="negmsg">${esc(p.nmsg)}</div>` : ''}
     ${out ? '<p class="small mut">Talks have ended. You can still pay the asking price.</p>' : `<div class="negcnt"><div class="small">Your bid</div><div class="row negstep"><button class="btn" data-act="buystep" data-v="-1" aria-label="Lower">&minus;</button><b id="negBid" class="sp">${coinHTML} ${fmt(bid)}</b><button class="btn" data-act="buystep" data-v="1" aria-label="Raise">+</button></div>
@@ -1516,8 +1532,8 @@ function renderBuy(pid) {
 }
 function buyAction(act, v) {
   const p = S.market.find(x => x.id === NEGUI.pid); const pid = NEGUI.pid; if (!p) return;
-  if (act === 'buystep') NEGUI.bid = E.clamp(NEGUI.bid + (+v) * stepOf(p.price), E.round10(p.price * 0.5), p.price);
-  else if (act === 'buypreset') NEGUI.bid = Math.min(p.price, E.round10(p.price * +v));
+  if (act === 'buystep') NEGUI.bid = E.clamp(NEGUI.bid + (+v) * stepOf(p.price), E.roundN(p.price * 0.5), p.price);
+  else if (act === 'buypreset') NEGUI.bid = Math.min(p.price, E.roundN(p.price * +v));
   else if (act === 'buymake') {
     const r = E.negotiate('buy', { value: E.value(p), offer: p.price, ask: NEGUI.bid, seed: 'buy|' + p.id + '|' + S.ci, round: p.nr || 0, lvl: coachLvl() });
     if (r.result === 'accept') { p.price = r.price; p.nmsg = `${p.club}: "Deal at ${fmt(r.price)}."`; save(); if (S.coins >= p.price && S.squad.length < 24) { buyPlayer(pid); return closeModal(); } }
@@ -1805,7 +1821,7 @@ function vClub() {
   tiles.push(['shop', 'tab', 'shop', 'Shop', fmt(S.coins) + ' coins']);
   tiles.push(['ach', 'ach', '', 'Awards', Object.keys(S.ach).length + '/' + ACH.length]);
   const tileHTML = `<div class="tiles" id="tiles">${tiles.map(t => `<button class="tile ${t[1] === 'trainnow' && ss.n === 0 ? 'hot' : ''}" data-act="${t[1]}" ${t[2] ? `data-v="${t[2]}"` : ''}>${TILE_ICON[t[0]]}<b>${t[3]}</b><small>${t[4]}</small></button>`).join('')}</div>`;
-  let right = asstHTML() + paceCard() + boardHTML() + coachCard() + `<div class="card" id="spiritCard"><h3>Team spirit</h3>${spiritHTML()}</div>` + sessionCard();
+  let right = asstHTML() + paceCard() + frHTML() + boardHTML() + coachCard() + `<div class="card" id="spiritCard"><h3>Team spirit</h3>${spiritHTML()}</div>` + sessionCard();
   if (S.ucl || S.uclNext) right += `<div class="card uclhead" id="uclCard"><h3>&#11088; Champions League</h3><p class="small" style="margin:0 0 8px">${esc(uclStatus())}</p>${S.ucl ? '<button class="btn sm" data-act="goucl" id="btnGoUcl">Groups and knockouts</button>' : ''}</div>`;
   right += `<div class="card"><h3>Cup</h3><p class="small" style="margin:0 0 8px">${esc(cupStatus())}</p><button class="btn sm" data-act="gocup">Cup bracket</button></div>`;
   right += `<div class="card"><h3>Daily bonus</h3>${canDaily() ? `<div class="row"><div class="sp"><b>Day ${S.daily.last === yesterdayStr() ? S.daily.streak + 1 : 1}</b> &middot; ${fmt(150 + 50 * Math.min((S.daily.last === yesterdayStr() ? S.daily.streak : 0), 6))} coins<div class="small mut">Come back daily for a bigger streak bonus.</div></div><button class="btn pri" data-act="daily" id="btnDaily">Claim</button></div><button class="btn ad sm" style="margin-top:8px" data-act="daily_ad"><span class="adtag">AD</span>Claim double</button>` : `<div class="small mut">Claimed today. Streak: <b style="color:var(--amber)">${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}</b>. Back tomorrow!</div>`}</div>`;
@@ -1860,10 +1876,10 @@ function reslot() {
 function swapPlayers(a, b) {
   if (a === b) return;
   const pa = P(a), pb = P(b), ia = S.lineup.indexOf(a), ib = S.lineup.indexOf(b);
-  if ((ia < 0 && pa.inj) || (ib < 0 && pb.inj)) { toast('Injured players cannot start.'); return; }
+  if ((ia < 0 && pa.inj) || (ib < 0 && pb.inj)) { toast('Injured players cannot start.'); return false; }
   if (ia >= 0 && ib >= 0) { S.lineup[ia] = b; S.lineup[ib] = a; }
   else if (ia >= 0) S.lineup[ia] = b; else if (ib >= 0) S.lineup[ib] = a;
-  save();
+  save(); return true;
 }
 function vSquad() {
   const xiIdx = id => S.lineup.indexOf(id), rk = (a, b) => E.rankScore(b) - E.rankScore(a) || b.pot - a.pot;
@@ -1917,7 +1933,7 @@ function vCup() {
   return `<div class="card"><h3>Season ${S.season} Cup</h3><p class="small" style="margin:0 0 8px">${esc(cupStatus())}</p><div class="bracket" id="bracket">${cols}</div><p class="tiny mut" style="margin:8px 0 0">16 clubs, single-leg knockout. A round is played after every third league matchday. A draw goes to penalties. Prize money for every round you win, plus a trophy bonus.</p></div>`;
 }
 function vShop() {
-  const seg = `<div class="seg"><button class="${shopTab === 'upgrades' ? 'on' : ''}" data-act="shoptab" data-v="upgrades">Club upgrades</button><button class="${shopTab === 'transfers' ? 'on' : ''}" data-act="shoptab" data-v="transfers">Transfer market</button><button class="${shopTab === 'tokens' ? 'on' : ''}" data-act="shoptab" data-v="tokens">Tokens</button></div>`;
+  const seg = `<div class="seg segx" id="shopSeg">${[['upgrades', 'Upgrades'], ['transfers', 'Market'], ['auctions', 'Auctions'], ['scout', 'Scouting'], ['academy', 'Academy'], ['tokens', 'Tokens']].map(([k, l]) => `<button class="${shopTab === k ? 'on' : ''}" data-act="shoptab" data-v="${k}">${l}</button>`).join('')}</div>`;
   const up = Object.keys(UPG).map(k => {
     const l = S.up[k], max = l >= 5, c = UPG_COST[l - 1];
     return `<div class="card ucard"><div class="ic">${UICONS[UPG[k].ic]}</div><div><b>${UPG[k].name}</b><div class="lv">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= l ? 'on' : ''}"></i>`).join('')}</div><div class="small mut">${UPG[k].desc(l)}${max ? '' : ' Next: ' + UPG[k].desc(l + 1).split('.')[0].replace(/^Basic.*/, '') + '.'}</div></div>${max ? '<span class="pill on">MAX</span>' : `<button class="btn pri sm" data-act="upgrade" data-v="${k}" ${S.coins < c ? 'disabled' : ''}>${coinHTML} ${fmt(c)}</button>`}</div>`;
@@ -1928,8 +1944,9 @@ function vShop() {
   }).join('');
   const market = `<div class="card"><div class="row"><h3 class="sp" style="margin:0">Transfer market (${S.market.length})</h3></div><p class="small mut" style="margin:6px 0">New players appear after every match. Squad ${S.squad.length}/24. Your XI averages ${myPower().avg.toFixed(0)}. Hold a player to see his quality and potential.</p>
   <div class="row" style="margin-bottom:6px"><button class="btn sm" data-act="refresh" ${S.coins < 60 ? 'disabled' : ''}>Refresh ${coinHTML}60</button><button class="btn ad sm" data-act="refresh_ad"><span class="adtag">AD</span>Free refresh</button><button class="btn pri sm" data-act="tsearch" id="btnSearch">&#128269; Search ${tokHTML}${TOK.search}</button></div>${mk}</div>`;
-  if (window.innerWidth >= 900) return `<div class="grid2"><div><h3 class="mut small" style="margin-bottom:8px">CLUB UPGRADES</h3>${up}${tokensHTML()}</div>${market}</div>`;
-  return seg + (shopTab === 'upgrades' ? up : shopTab === 'tokens' ? tokensHTML() : market);
+  const extra = { auctions: aucHTML, scout: scoutHTML, academy: acadHTML, tokens: tokensHTML }[shopTab];
+  if (window.innerWidth >= 900) return seg + (extra && shopTab !== 'tokens' ? extra() : `<div class="grid2"><div><h3 class="mut small" style="margin-bottom:8px">CLUB UPGRADES</h3>${buildHTML()}${up}${tokensHTML()}</div>${market}</div>`);
+  return seg + (shopTab === 'upgrades' ? buildHTML() + up : extra ? extra() : market);
 }
 
 /* ---------- player detail card (long press) ---------- */
@@ -2143,7 +2160,7 @@ function htSubsHTML() {
 }
 function endMatchView() {
   if (MS.done) return; MS.done = true; clearTimeout(MS.timer); MS.tos.forEach(clearTimeout); PortalSDK.gameplayStop(); sfx.whistle();
-  const info = MS.info, m = MS.m; finishMatch(info); v7after(); v8after(info); renderTop();
+  const info = MS.info, m = MS.m; finishMatch(info); v7after(); v8after(info); v9after(); renderTop();
   { const bl = $('#mball'); if (bl) bl.style.display = 'none'; const fx = $('#mfx'); if (fx) fx.innerHTML = ''; const gb = $('#gban'); if (gb) { gb.className = 'gbanner'; gb.textContent = ''; } MS.near && MS.near.el.classList.remove('hasball'); document.body.classList.add('lowtoast'); }
   const L = S.last, H = m.sides[0], A = m.sides[1], mm = $('#mmodal'); mm.hidden = false;
   feed(90, E.lineText('full', Math.random, { h: H.name, a: A.name, hs: m.score[0], as: m.score[1] }), 'sys');
@@ -2255,7 +2272,7 @@ function showAch() {
 }
 function showSettings() {
   const sp = S.settings.speed || 1;
-  modal(`<h2>Settings</h2><div class="row" style="margin-bottom:10px"><span class="sp">Sound</span><button class="btn sm" data-act="mute" id="btnMute">${S.settings.mute ? 'Off' : 'On'}</button></div>
+  modal(`<h2>Settings</h2><div class="row" style="margin-bottom:10px"><span class="sp">Sound</span><button class="btn sm" data-act="mute" id="btnMute">${S.settings.mute ? 'Off' : 'On'}</button></div>${isC() ? '' : `<div class="row" style="margin-bottom:10px"><span class="sp">Big chances in matches<div class="tiny mut">Tap-to-play shots and saves during live matches</div></span><button class="btn sm" data-act="bctoggle" id="btnBC">${S.settings.bc === false ? 'Off' : 'On'}</button></div>`}
   <div class="row" style="margin-bottom:12px"><span class="sp">Match speed</span><div class="pills" id="speedPills">${[1, 2, 3].map(k => `<button class="pill ${sp === k ? 'on' : ''}" data-act="setspeed" data-v="${k}">${k}x</button>`).join('')}</div></div>
   <button class="btn big" data-act="ach" style="margin-bottom:8px">Achievements (${Object.keys(S.ach).length}/${ACH.length})</button><button class="btn big" data-act="how" style="margin-bottom:8px">How to play / tips</button><button class="btn big" data-act="titlescreen" style="margin-bottom:8px">Main menu</button><button class="btn big" data-act="reset" id="btnReset" style="color:var(--red)">Delete save &amp; start over</button><button class="btn pri big" style="margin-top:8px" data-act="close">Close</button>`);
 }
@@ -2438,7 +2455,7 @@ document.addEventListener('click', e => {
     case 'cmpchange': CMP.pick = v; renderCmp(); break;
     case 'cmpbackpick': CMP.pick = null; renderCmp(); break;
     case 'cmppick': CMP[CMP.pick] = pid; CMP.pick = null; renderCmp(); break;
-    case 'cmpswap': { const A = findP(CMP.a), B = findP(CMP.b); swapPlayers(A.id, B.id); toast('Lineup updated'); render(); renderCmp(); break; }
+    case 'cmpswap': { const A = findP(CMP.a), B = findP(CMP.b); if (swapPlayers(A.id, B.id)) toast('Lineup updated'); render(); renderCmp(); break; }
     case 'cmpsign': { buyPlayer(pid); if (P(pid)) { renderTop(); CMP.b = pid; renderCmp(); } break; }
     case 'cmpmode': cmpMode = !cmpMode; sel = null; render(); break;
     case 'sort': sortBy = v; render(); break;
@@ -2486,7 +2503,7 @@ document.addEventListener('click', e => {
     case 'momgo': momTap(); break;
   }
 });
-window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason(), ff: ms => devFF(ms), paceSync: () => paceSync(), paceOn: () => paceOn(), search: f => doSearch(f), tokens: () => showTokens(), bcFinish: q => bcFinish(q), asst: () => asstTips(), talk: k => doTalk(k, myFixture()), chat: (id, k) => doChat(id, k) } }; // debug handle used by the headless test
+window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason(), ff: ms => devFF(ms), paceSync: () => paceSync(), paceOn: () => paceOn(), search: f => doSearch(f), tokens: () => showTokens(), bcFinish: q => bcFinish(q), asst: () => asstTips(), talk: k => doTalk(k, myFixture()), chat: (id, k) => doChat(id, k), sync: () => v9sync(), aucTop: () => aucTop(), friendly: k => playFriendly(k), acadIntake: () => acadIntake(), bcOn: () => bcOn() } }; // debug handle used by the headless test
 
 /* ---------- training sessions (before each match) + mini games ---------- */
 const MAX_SESS = 3; // 1 free + 2 extra (rewarded ad placeholder) per matchday
@@ -3166,7 +3183,7 @@ setInterval(() => { if (!S || !S.pace || !paceOn()) return; const n0 = S.pace.n;
 const INT = { light: { l: 'Light', m: 0.75, fit: -3, inj: 0, d: '0.75x progress, +3 fitness' }, normal: { l: 'Normal', m: 1, fit: 0, inj: 0, d: '1x progress' }, hard: { l: 'Hard', m: 1.4, fit: 8, inj: 0.2, d: '1.4x progress, -8 fitness, injury risk' } };
 const TCOOL = 2 * 3600e3; // real-time gap between training sessions (only while pacing is on)
 const BC = { autoShot: 0.25, autoSave: 0.75 }; // skipped moments: chance our shot scores / our keeper saves
-function bcOn() { try { const f = localStorage.getItem('tg.bc'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} if (S && S.settings && S.settings.bc === false) return false; return !navigator.webdriver; }
+function bcOn() { if (S && S.settings && S.settings.bc === false) return false; /* the player's own setting always wins */ try { const f = localStorage.getItem('tg.bc'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} return !navigator.webdriver; }
 function v8init(s) { if (!s.tInt) s.tInt = 'normal'; if (!s.drill) s.drill = 'match'; if (s.evq === undefined) s.evq = null; if (!s.tcool) s.tcool = 0; if (!s.talk) s.talk = null; if (!s.chats) s.chats = { ci: -1, ids: {} }; }
 /* ----- big chances ----- */
 function bcPlan(L) {
@@ -3353,6 +3370,162 @@ function v8act(act, v, b) {
 }
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-act]'); if (!b || !S) return; if (v8act(b.dataset.act, b.dataset.v, b)) { e.stopPropagation(); e.preventDefault(); } }, true);
 { const _sp = showPlayer; showPlayer = function (pid) { _sp(pid); const p = P(pid), o = $('#overlay'); if (p && o && !o.hidden && !isC()) { const h = chatHTML(p); if (h) { const box = o.querySelector('.modal') || o; box.insertAdjacentHTML('beforeend', h); } } }; }
+
+/* =====================================================================
+   v9 (Phase 3): transfer auctions with real-time timers vs AI bidders, scouting missions with timed reports, youth academy,
+   facility builds with real-time timers, friendlies (no match ticket, fitness/morale/spirit trade-offs), big-chance setting.
+   Tokens only buy time, information or convenience: a bid token (Top Eleven style; the fee is always paid in coins), auction
+   extensions, scout and build rushes. Timers use NOW() (dev offset aware). Builds are instant when pacing is off (tests/automation).
+   ===================================================================== */
+const AUC = { n: 3, dur: 3 * 3600e3, snipe: 10 * 60e3, ext: 5 * 60e3, tokExt: 30 * 60e3, maxExt: 2 };
+const SCOUT = { cost: 100, rush: 3 * 3600e3 };
+const REGIONS = { home: ['Domestic', 'Balanced, quick to report', 0, 0, 0], eu: ['Europe', 'Technical, polished players', 2, 0, 0], sa: ['South America', 'Young forwards with high potential', -2, 6, -3], af: ['Africa', 'Athletic young defenders', -1, 4, -2], as: ['Asia', 'Cheaper, steady players', -1, 1, 1] };
+const BUILD_H = l => 2 * (l - 1); // hours to build level l (2, 4, 6, 8)
+const BUILD_RUSH = 2 * 3600e3, BUILD_MAXRUSH = 2, FR_MAX = 2;
+Object.assign(TOK, { bid: 1, ext: 1, scoutRush: 2, buildRush: 2 });
+UPG.youth = { name: 'Youth Academy', desc: l => `${acadN(l)} prospects every season, potential +${2 * l}.`, ic: 'train' };
+const acadN = l => 2 + (l >= 3 ? 1 : 0) + (l >= 5 ? 1 : 0);
+function v9init(s) {
+  if (!s.auc) s.auc = []; if (!s.scouts) s.scouts = []; if (!s.reports) s.reports = []; if (!s.academy) s.academy = [];
+  if (s.acadSeason == null) s.acadSeason = 0; if (s.build === undefined) s.build = null; if (s.up && !s.up.youth) s.up.youth = 1; if (!s.fr) s.fr = { ci: -1, n: 0 };
+}
+/* ----- auctions ----- */
+const aStep = a => E.negStep(a.v);
+function aucNew() {
+  const r = Math.random, lvl = S.lineup.length ? xiAvg() : 60, young = r() < 0.4, pos = E.pick(r, ['GK', 'DEF', 'DEF', 'MID', 'MID', 'FWD', 'FWD']);
+  const p = E.makePlayer(pos, E.clamp(Math.round(lvl + E.ri(r, -1, 6) - (young ? 5 : 0)), 40, 90), young ? E.ri(r, 17, 21) : E.ri(r, 22, 30), r, { potBonus: young ? 6 : 2 });
+  p.fit = 100; p.mor = 60; p.con = 3; p.club = clubNameFor(p.id, S.club.name); const v = E.value(p), now = NOW();
+  const ai = shuffle(POOL.filter(c => c.name !== S.club.name).map(c => c.name), E.mulberry32((r() * 1e9) >>> 0)).slice(0, 3).map(n => ({ n, max: E.roundN(v * (0.8 + 0.5 * r())) }));
+  return { id: 'a' + now.toString(36) + Math.floor(r() * 1e4), p, v, ai, bid: E.roundN(v * 0.5), lead: null, start: now, end: now + AUC.dur, aiAt: now + (10 + E.ri(r, 0, 40)) * 60e3, ext: 0, mine: 0, log: [], res: null };
+}
+function aucSched(a, t) { const nb = a.bid + aStep(a), c = a.ai.filter(x => x.n !== a.lead && x.max >= nb); a.aiAt = c.length ? t + (5 + Math.floor(Math.random() * 16)) * 60e3 : null; }
+function aucSync(a) {
+  if (a.res) return; const now = NOW();
+  for (let k = 0; k < 60 && a.aiAt && a.aiAt <= Math.min(now, a.end); k++) {
+    const t = a.aiAt, nb = a.lead == null ? a.bid : a.bid + aStep(a), c = a.ai.filter(x => x.n !== a.lead && x.max >= nb).sort((x, y) => y.max - x.max);
+    if (!c.length) { a.aiAt = null; break; }
+    a.bid = nb; a.lead = c[0].n; a.log.unshift([t, c[0].n, nb]); if (a.end - t < AUC.snipe) a.end += AUC.ext; aucSched(a, t);
+  }
+  if (now >= a.end) {
+    if (a.lead === 'me') {
+      if (S.coins >= a.bid && S.squad.length < 24) { S.coins -= a.bid; const p = a.p; delete p.club; p.con = 3; S.squad.push(p); unlock('signing'); addXP(XP.sign); refreshXI(); a.res = 'won'; setTimeout(() => toast(`Auction won: ${sname(p)} signs for ${fmt(a.bid)}!`), 300); }
+      else { a.res = 'lost'; a.why = S.squad.length >= 24 ? 'Squad full' : 'Not enough coins'; }
+    } else a.res = a.lead ? 'lost' : 'unsold';
+  }
+}
+function aucTop() { S.auc = S.auc.filter(a => !a.res || NOW() - a.end < 12 * 3600e3).slice(-6); while (S.auc.filter(a => !a.res).length < AUC.n) S.auc.push(aucNew()); }
+function aucBid(id) {
+  const a = S.auc.find(x => x.id === id); if (!a) return; aucSync(a); if (a.res) return toast('This auction has ended.');
+  if (a.lead === 'me') return toast('You are already the highest bidder.');
+  const nb = a.lead == null ? a.bid : a.bid + aStep(a); if (S.coins < nb) return toast(`You need ${fmt(nb)} coins to bid (paid only if you win).`);
+  if (!spendTok(TOK.bid, 'A bid')) return; const t = NOW(); a.bid = nb; a.lead = 'me'; a.mine++; a.log.unshift([t, 'You', nb]); if (a.end - t < AUC.snipe) a.end += AUC.ext; aucSched(a, t); save(); render(); toast('You lead at ' + fmt(nb) + ' coins.');
+}
+function aucExt(id) { const a = S.auc.find(x => x.id === id); if (!a || a.res || a.ext >= AUC.maxExt) return; if (!spendTok(TOK.ext, 'An extension')) return; a.end += AUC.tokExt; a.ext++; save(); render(); toast('Auction extended by 30 minutes.'); }
+function aucHTML() {
+  S.auc.forEach(aucSync); const now = NOW();
+  return `<div class="card" id="aucCard"><h3>&#128296; Auctions</h3><p class="small mut" style="margin:4px 0 8px">Bid against other clubs in real time. Each bid costs ${TOK.bid} token; you pay the fee in coins only if you win. A late bid adds 5 minutes. You have ${fmt(S.coins)} coins.</p>
+  ${S.auc.map(a => { const p = a.p, me = a.lead === 'me', nb = a.lead == null ? a.bid : a.bid + aStep(a), left = a.end - now;
+    return `<div class="auc ${a.res ? 'done ' + a.res : ''}" id="auc-${a.id}"><div class="row"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${posTag(p.pos)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} &middot; Value ${fmt(a.v)} &middot; ${esc(p.club || '')}</div></div><div class="atime"><b class="${!a.res && left < AUC.snipe ? 'hot' : ''}">${a.res ? (a.res === 'won' ? 'WON' : a.res === 'unsold' ? 'Unsold' : 'Lost') : dur(left)}</b><small>${a.res ? '' : 'left'}</small></div></div>
+    <div class="row" style="margin-top:6px"><span class="small sp">${a.lead ? (me ? '<b style="color:var(--green)">You lead</b>' : 'Leader: <b>' + esc(a.lead) + '</b>') : 'No bids yet'} &middot; ${coinHTML} ${fmt(a.bid)}${a.res === 'lost' && a.why ? ' &middot; ' + a.why : ''}</span>
+    ${a.res ? '' : `<button class="btn pri sm" data-act="abid" data-v="${a.id}" id="abid-${a.id}" ${me ? 'disabled' : ''}>Bid ${fmt(nb)} ${tokHTML}${TOK.bid}</button><button class="btn sm" data-act="aext" data-v="${a.id}" id="aext-${a.id}" ${a.ext >= AUC.maxExt ? 'disabled' : ''}>+30m ${tokHTML}${TOK.ext}</button>`}</div>
+    ${a.log.length ? `<div class="tiny mut">${a.log.slice(0, 3).map(l => esc(l[1]) + ' ' + fmt(l[2])).join(' &larr; ')}</div>` : ''}</div>`; }).join('')}</div>`;
+}
+/* ----- scouting network ----- */
+const scoutSlots = () => 1 + Math.floor((S.up.scout - 1) / 2);
+const scoutHours = () => Math.max(2, 6 - (S.up.scout - 1));
+const scoutCost = () => Math.round(SCOUT.cost * TIER_MULT[S.tier]);
+function scoutSend(reg, pos) {
+  if (S.scouts.length >= scoutSlots()) return toast('All your scouts are busy. Upgrade the Scouting Network for more scouts.');
+  if (S.coins < scoutCost()) return toast('Not enough coins.'); S.coins -= scoutCost();
+  const now = NOW(); S.scouts.push({ id: 's' + now.toString(36) + Math.floor(Math.random() * 1e4), reg, pos: pos || 'ANY', start: now, end: now + scoutHours() * 3600e3, rush: 0 }); save(); render(); renderTop(); toast(`Scout sent to ${REGIONS[reg][0]}. Report in ${scoutHours()} hours.`);
+}
+function scoutRush(id) { const s = S.scouts.find(x => x.id === id); if (!s || s.rush) return; if (!spendTok(TOK.scoutRush, 'Rushing a report')) return; s.end -= SCOUT.rush; s.rush = 1; scoutSync(); save(); render(); }
+function scoutSync() {
+  const now = NOW(); S.scouts = S.scouts.filter(s => {
+    if (now < s.end) return true;
+    const R = REGIONS[s.reg], r = Math.random, lvl = (S.lineup.length ? xiAvg() : 60), out = [];
+    for (let i = 0; i < 3; i++) { const pos = s.pos !== 'ANY' ? s.pos : E.pick(r, s.reg === 'sa' ? ['FWD', 'FWD', 'MID'] : s.reg === 'af' ? ['DEF', 'DEF', 'MID'] : POSN);
+      const young = r() < 0.5 + R[3] * 0.04, age = young ? E.ri(r, 17, 21) : E.ri(r, 22, 29), p = E.makePlayer(pos, E.clamp(Math.round(lvl + R[2] + E.ri(r, -4, 3 + S.up.scout) - (young ? 4 : 0)), 40, 88), age, r, { potBonus: (young ? 4 : 0) + R[3] + S.up.scout });
+      p.fit = 100; p.mor = 60; p.price = Math.max(10, E.roundN(E.value(p) * (1 - 0.06 * R[4]))); p.club = clubNameFor(p.id, S.club.name); p.found = true; p.rep = R[0];
+      p.note = p.pot - E.ovr(p) >= 12 ? 'Hidden gem: big potential.' : E.ovr(p) >= lvl + 3 ? 'Ready now: would start for us.' : 'Solid squad option.'; out.push(p); }
+    S.reports.unshift({ id: s.id, reg: s.reg, at: s.end, players: out }); S.reports = S.reports.slice(0, 4); setTimeout(() => toast(`Scout report from ${R[0]} is in!`), 200); return false;
+  });
+}
+function scoutShort(rid, pid) { const rp = S.reports.find(x => x.id === rid); if (!rp) return; const p = rp.players.find(x => x.id === pid); if (!p) return; rp.players = rp.players.filter(x => x.id !== pid); S.market = [p].concat(S.market).slice(0, 20); save(); render(); toast(sname(p) + ' added to the top of the transfer market.'); }
+function scoutHTML() {
+  scoutSync(); const now = NOW(), free = scoutSlots() - S.scouts.length;
+  return `<div class="card" id="scoutCard"><h3>&#128269; Scouting network</h3><p class="small mut" style="margin:4px 0 8px">Send a scout to a region. Reports take ${scoutHours()} real hours and cost ${fmt(scoutCost())} coins. Scouts: ${S.scouts.length}/${scoutSlots()} busy (upgrade the Scouting Network for more and faster scouts).</p>
+  ${free > 0 ? `<div class="flts"><label class="flt"><span class="small mut">Region</span><select id="scReg">${Object.keys(REGIONS).map(k => `<option value="${k}">${REGIONS[k][0]}</option>`).join('')}</select></label><label class="flt"><span class="small mut">Position</span><select id="scPos"><option value="ANY">Any</option>${POSN.map(p => `<option>${p}</option>`).join('')}</select></label></div><p class="tiny mut" style="margin:0 0 8px">${Object.keys(REGIONS).map(k => '<b>' + REGIONS[k][0] + '</b>: ' + REGIONS[k][1]).join(' &middot; ')}</p><button class="btn pri" data-act="scgo" id="scoutGo" ${S.coins < scoutCost() ? 'disabled' : ''}>Send scout ${coinHTML} ${fmt(scoutCost())}</button>` : ''}
+  ${S.scouts.map(s => `<div class="auc" id="sc-${s.id}"><div class="row"><span class="sp small"><b>${REGIONS[s.reg][0]}</b> &middot; ${s.pos === 'ANY' ? 'any position' : s.pos} &middot; report in <b>${dur(s.end - now)}</b></span><button class="btn sm" data-act="scrush" data-v="${s.id}" id="scrush-${s.id}" ${s.rush ? 'disabled' : ''}>-3h ${tokHTML}${TOK.scoutRush}</button></div><div class="pb"><i style="width:${E.clamp((now - s.start) / (s.end - s.start) * 100, 0, 100)}%"></i></div></div>`).join('')}
+  ${S.reports.map(rp => `<div class="rep" id="rep-${rp.id}"><h4 class="small mut" style="margin:10px 0 4px">REPORT: ${REGIONS[rp.reg][0].toUpperCase()}</h4>${rp.players.length ? rp.players.map(p => `<div class="row repp"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${posTag(p.pos)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${coinHTML}${fmt(p.price)}</div><div class="tiny" style="color:var(--amber)">${esc(p.note)}</div></div><button class="btn sm" data-act="scshort" data-v="${rp.id}" data-pid="${p.id}">To market</button></div>`).join('') : '<p class="tiny mut">All moved to the market.</p>'}</div>`).join('')}</div>`;
+}
+/* ----- youth academy ----- */
+function acadIntake() {
+  if (isC() || S.acadSeason === S.season) return; S.acadSeason = S.season; const r = Math.random, l = S.up.youth || 1;
+  for (let i = 0; i < acadN(l) && S.academy.length < 6; i++) { const p = E.makePlayer(E.pick(r, ['GK', 'DEF', 'DEF', 'MID', 'MID', 'FWD', 'FWD']), E.ri(r, 38 + 2 * l, 46 + 3 * l), E.ri(r, 15, 17), r, { potBonus: E.ri(r, 6, 12) + 2 * l }); p.fit = 100; p.mor = 70; p.acad = S.season; S.academy.push(p); }
+  setTimeout(() => toast('Youth academy: new prospects have arrived!'), 600);
+}
+function acadPromote(pid) { const p = S.academy.find(x => x.id === pid); if (!p) return; if (S.squad.length >= 24) return toast('Squad is full (24).'); S.academy = S.academy.filter(x => x.id !== pid); p.con = 3; delete p.acad; S.squad.push(p); refreshXI(); save(); render(); toast(sname(p) + ' promoted to the first-team squad.'); }
+function acadRelease(pid) { S.academy = S.academy.filter(x => x.id !== pid); save(); render(); }
+function acadHTML() {
+  acadIntake(); return `<div class="card" id="acadCard"><h3>&#127891; Youth academy &middot; level ${S.up.youth}</h3><p class="small mut" style="margin:4px 0 8px">${acadN(S.up.youth)} new prospects arrive every season. Promote the best to your squad (they play and train with the first team) or release them. Academy places: ${S.academy.length}/6.</p>
+  ${S.academy.length ? S.academy.map(p => `<div class="row repp" id="ac-${p.id}"><div class="ov aov">${E.ovr(p)}</div><div class="sp"><b>${esc(sname(p))}</b> ${posTag(p.pos)}<div class="tiny mut">Age ${p.age} &middot; Pot ${p.pot} ${stars(p.pot)}</div></div><button class="btn pri sm" data-act="acpro" data-v="${p.id}">Promote</button><button class="btn sm" data-act="acrel" data-v="${p.id}">Release</button></div>`).join('') : '<p class="small mut">No prospects right now. The next intake arrives at the start of next season.</p>'}</div>`;
+}
+/* ----- facility builds ----- */
+function buildSync() { const b = S.build; if (!b || NOW() < b.end) return; S.up[b.k] = b.to; if (b.to >= 3) unlock('upgrade3'); S.build = null; setTimeout(() => toast(`${UPG[b.k].name} is now level ${b.to}!`), 200); }
+function buildHTML() {
+  buildSync(); const b = S.build; if (!b) return paceOn() ? `<p class="tiny mut" id="buildNote" style="margin:0 0 8px">Upgrades take real time to build (2-8 hours). One build at a time.</p>` : '';
+  const now = NOW(); return `<div class="card" id="buildCard"><h3>&#127959; Building: ${UPG[b.k].name} level ${b.to}</h3><div class="row"><span class="sp small">Ready in <b>${dur(b.end - now)}</b></span><button class="btn sm" data-act="brush" id="btnRush" ${b.rush >= BUILD_MAXRUSH ? 'disabled' : ''}>-2h ${tokHTML}${TOK.buildRush}</button></div><div class="pb"><i style="width:${E.clamp((now - b.start) / (b.end - b.start) * 100, 0, 100)}%"></i></div></div>`;
+}
+/* ----- friendlies ----- */
+function frState() { if (!S.fr || S.fr.ci !== S.ci) S.fr = { ci: S.ci, n: 0 }; return S.fr; }
+function frHTML() {
+  if (isC() || S.endSummary) return ''; const f = frState(), left = FR_MAX - f.n;
+  return `<div class="card" id="frCard"><h3>&#129309; Friendly match</h3><p class="small mut" style="margin:4px 0 8px">No match ticket needed, no league points. ${left} left before the next matchday.</p><div class="talkrow" style="grid-template-columns:1fr 1fr"><button class="btn sm talkb" data-act="friendly" data-v="rot" id="frRot" ${left > 0 ? '' : 'disabled'}><b>Rotation XI</b><small>Fringe players: morale +4, they get tired (-10)</small></button><button class="btn sm talkb" data-act="friendly" data-v="first" id="frFirst" ${left > 0 ? '' : 'disabled'}><b>First XI</b><small>Team spirit +4, starters lose 15 fitness</small></button></div></div>`;
+}
+function playFriendly(kind) {
+  if (isC() || S.live || S.endSummary) return null; const f = frState(); if (f.n >= FR_MAX) { toast('No more friendlies before the next matchday.'); return null; }
+  const st = new Set(S.lineup); let ids;
+  if (kind === 'rot') { const pool = S.squad.filter(p => !p.inj && !st.has(p.id)).concat(S.squad.filter(p => !p.inj && st.has(p.id)).sort((a, b) => a.fit - b.fit).slice(0, 6)); ids = E.autoPick(pool, S.formation); }
+  else { fixLineup(); ids = S.lineup.slice(); }
+  const opps = S.league.teams.filter(t => t.id !== 'me'), opp = opps[Math.floor(Math.random() * opps.length)];
+  const me = userSide({ f: S.formation, m: 'balanced', l: ids, c: S.coh }), m = E.createMatch(me, aiSide(opp), E.mulberry32((Math.random() * 4294967295) >>> 0)); E.simFull(m);
+  const res = m.score[0] > m.score[1] ? 'W' : m.score[0] < m.score[1] ? 'L' : 'D', tm = TIER_MULT[S.tier];
+  ids.forEach(id => { const p = P(id); if (!p) return; p.fit = E.clamp(p.fit - (kind === 'rot' ? 10 : 15), 5, 100); if (kind === 'rot') p.mor = E.clamp(p.mor + 4 + (res === 'W' ? 2 : 0), 8, 100); else p.mor = E.clamp(p.mor + (res === 'W' ? 3 : res === 'L' ? -3 : 0), 8, 100); });
+  if (kind === 'first') S.coh = E.clamp(S.coh + 4, 0, 100); else S.coh = E.clamp(S.coh + 1, 0, 100);
+  const coins = Math.round((res === 'W' ? 40 : 15) * tm); S.coins += coins; f.n++; save();
+  const out = { res, score: m.score.slice(), opp: opp.name, ids, coins, kind }; return out;
+}
+function showFriendly(o) {
+  modal(`<div id="frResult"><h2>Friendly: ${o.res === 'W' ? 'Win' : o.res === 'D' ? 'Draw' : 'Defeat'} ${o.score[0]}-${o.score[1]}</h2><p class="small">${esc(S.club.name)} vs ${esc(o.opp)} (${o.kind === 'rot' ? 'rotation XI' : 'first XI'}).</p>
+  <ul class="small toklist"><li>${o.kind === 'rot' ? 'Fringe players: morale +4' + (o.res === 'W' ? ' (+2 for the win)' : '') + ', fitness -10' : 'Team spirit +4, starters\' fitness -15'}</li><li>Gate money: +${fmt(o.coins)} coins</li><li>No league points, no match ticket used.</li></ul><button class="btn pri big" data-act="close" id="frOk">Done</button></div>`);
+  renderTop(); render();
+}
+/* ----- sync, hooks, actions ----- */
+function v9sync() { if (!S || isC()) return; v9init(S); buildSync(); scoutSync(); S.auc.forEach(aucSync); }
+function v9after() { if (!S || isC()) return; v9sync(); aucTop(); save(); }
+function v9act(act, v, b) {
+  switch (act) {
+    case 'abid': aucBid(v); return true;
+    case 'aext': aucExt(v); return true;
+    case 'scgo': scoutSend($('#scReg').value, $('#scPos').value); return true;
+    case 'scrush': scoutRush(v); return true;
+    case 'scshort': scoutShort(v, b.dataset.pid); return true;
+    case 'acpro': acadPromote(v); return true;
+    case 'acrel': acadRelease(v); return true;
+    case 'brush': { const bd = S.build; if (!bd || bd.rush >= BUILD_MAXRUSH) return true; if (spendTok(TOK.buildRush, 'Rushing a build')) { bd.end -= BUILD_RUSH; bd.rush++; buildSync(); save(); render(); } return true; }
+    case 'friendly': { const o = playFriendly(v); if (o) showFriendly(o); return true; }
+    case 'bctoggle': S.settings.bc = S.settings.bc === false; save(); showSettings(); return true;
+  }
+  return false;
+}
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-act]'); if (!b || !S) return; if (v9act(b.dataset.act, b.dataset.v, b)) { e.stopPropagation(); e.preventDefault(); } }, true);
+{ const _r = render; render = function () { if (S && !isC()) { v9sync(); acadIntake(); if (!S.auc.some(a => !a.res)) aucTop(); } _r(); }; }
+{ const _u = upgrade; upgrade = function (key) {
+  if (isC() || !paceOn()) return _u(key);
+  const l = S.up[key]; if (l >= 5) return; if (S.build) return toast('Builders are busy: one upgrade at a time.'); const c = UPG_COST[l - 1]; if (S.coins < c) return toast('Not enough coins.');
+  S.coins -= c; const now = NOW(); S.build = { k: key, to: l + 1, start: now, end: now + BUILD_H(l + 1) * 3600e3, rush: 0 }; save(); toast(`Building ${UPG[key].name} level ${l + 1}: ready in ${BUILD_H(l + 1)} hours.`); render(); renderTop(); }; }
+setInterval(() => { if (!S || isC() || $('#app').hidden || !$('#match').hidden) return; const k = JSON.stringify([S.build && S.build.to, S.scouts.length, S.auc.map(a => a.res + a.lead + a.bid).join()]); v9sync(); const k2 = JSON.stringify([S.build && S.build.to, S.scouts.length, S.auc.map(a => a.res + a.lead + a.bid).join()]); if (k !== k2) { save(); if ($('#overlay').hidden) render(); } }, 5000);
 
 /* ---------- boot ---------- */
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#overlay').hidden) closeModal(); });
