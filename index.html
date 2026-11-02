@@ -510,6 +510,20 @@ body.lowtoast #toast{top:auto;bottom:18px}
 .shouts{display:grid;grid-template-columns:1fr 1fr;gap:6px}.shout{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:52px}.shout small{font-size:10px;opacity:.75;font-weight:500}
 #touchPanel{max-height:92vh;overflow:auto}
 
+/* ---------- v8: big chances, talks, events, assistant, intensity ---------- */
+.pstrip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-bottom:10px;cursor:pointer;font-size:14px}
+.talkrow,.evopts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.evopts{grid-template-columns:1fr}.talkb{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:50px}.talkb small{font-size:10px;opacity:.75;font-weight:500}.talkb.on{outline:2px solid var(--green)}
+.evcard{border-color:var(--amber)}
+.tip{display:flex;gap:8px;align-items:flex-start;margin:6px 0}.tip>span:first-child{font-size:18px;line-height:1.1}
+.introw{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.bcgoal{position:relative;height:120px;margin:6px 4px;border:4px solid #f1f5f9;border-bottom:0;border-radius:4px 4px 0 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.08) 0 8px,transparent 8px 16px),#1d5a38}
+.bckp{position:absolute;bottom:0;width:22%;height:70%;transform:translateX(-50%);background:#f97316;border-radius:10px 10px 0 0;transition:left .25s}.bckp.me{background:#22c55e}
+.bcaim{position:absolute;top:40%;width:26px;height:26px;margin:-13px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 2px #e63946}
+.bcarrow{position:absolute;top:10px;left:50%;font-size:0;opacity:0}.bcarrow.on{opacity:1;font-size:34px;transform:translateX(-50%)}.bcarrow.on::after{color:#ffb703}.bcarrow.d0::after{content:'\2196'}.bcarrow.d1::after{content:'\2191'}.bcarrow.d2::after{content:'\2197'}
+.bcpow{position:relative;height:22px;border-radius:11px;background:linear-gradient(90deg,#334155,#64748b 60%,#ef4444 95%);margin:10px 4px}.bcpow .sweet{position:absolute;left:60%;width:25%;top:0;bottom:0;background:rgba(34,197,94,.75)}.bcpow .needle{position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;background:#fff;left:0}
+.bcm{max-width:420px;margin:auto}
+.bcarrow{z-index:2;top:2px}.bcarrow.on{font-size:44px;text-shadow:0 2px 6px #000}.bcarrow.d0{left:15%}.bcarrow.d1{left:50%}.bcarrow.d2{left:85%}.bcgoal .bckp.me{height:55%}
+
 </style>
 </head>
 <body>
@@ -1067,7 +1081,7 @@ const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + St
 const yesterdayStr = () => { const d = new Date(Date.now() - 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const KEYS = [KEY, 'touchlinegaffer.slot2', 'touchlinegaffer.slot3']; let SLOT = 0, titleView = 'main', newPos = 'FWD';
 function save() { try { localStorage.setItem(KEYS[SLOT], JSON.stringify(S)); localStorage.setItem('touchlinegaffer.lastslot', String(SLOT)); } catch (e) {} }
-function load(i) { try { const s = JSON.parse(localStorage.getItem(KEYS[i == null ? SLOT : i])); return s && s.v >= 1 && s.v <= 7 ? migrate(s) : null; } catch (e) { return null; } }
+function load(i) { try { const s = JSON.parse(localStorage.getItem(KEYS[i == null ? SLOT : i])); return s && s.v >= 1 && s.v <= 8 ? migrate(s) : null; } catch (e) { return null; } }
 const byId = () => { const m = {}; S.squad.forEach(p => m[p.id] = p); return m; };
 const P = id => S.squad.find(p => p.id === id);
 const sname = p => p.first[0] + '. ' + p.last;
@@ -1180,7 +1194,7 @@ function newGame(name, colorIdx) {
   const r = Math.random;
   const squad = E.genSquad(59, r, { formation: '3-4-3' });
   S = {
-    v: 7, mode: 'manager', club: { name: name || 'Harbor Lights FC', short: (name || 'HLF').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'HLF', c: COLORS[colorIdx || 0], pat: colorIdx % 4 || 0, id: 'me' },
+    v: 8, mode: 'manager', club: { name: name || 'Harbor Lights FC', short: (name || 'HLF').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'HLF', c: COLORS[colorIdx || 0], pat: colorIdx % 4 || 0, id: 'me' },
     coins: 500, season: 1, tier: 0, week: 0, squad, formation: '3-4-3', mentality: 'balanced', lineup: squad.slice(0, 11).map(p => p.id), training: 'attack',
     up: { train: 1, stadium: 1, scout: 1 }, league: null, market: [], daily: { last: '', streak: 0 }, history: [], trophies: 0,
     last: null, endSummary: null, form: [], settings: { mute: false, speed: 1 }, seen: {}, totalWins: 0,
@@ -1188,7 +1202,7 @@ function newGame(name, colorIdx) {
     star: { cands: E.makeStars(r), done: false }, coach: { xp: 0, lvl: 1 }, autoXI: true, neg: null, sales: 0, ucl: null, uclNext: false, uclWon: 0, board: null
   };
   S.star.cands.forEach(p => p.con = 3);
-  v7init(S); setupSeason(); genMarket(); save();
+  v7init(S); v8init(S); setupSeason(); genMarket(); save();
 }
 function migrate(s) {
   if (s.v === 1) {
@@ -1211,6 +1225,8 @@ function migrate(s) {
   }
   if (s.v === 6) { v7init(s); s.v = 7; } // v7: match tickets (real-time pacing), tokens, scouted market players
   v7init(s);
+  if (s.v === 7) { v8init(s); s.v = 8; } // v8: training intensity/drill, press-board event queue, team talks, morale chats
+  v8init(s);
   (s.market || []).forEach(p => { if (!p.club) p.club = clubNameFor(p.id, s.club && s.club.name); });
   if (s.coh == null) s.coh = 50;
   (s.squad || []).forEach(pstat);
@@ -1780,7 +1796,7 @@ function vClub() {
     h += `<div class="card fxcard"><h3>${fx.kind === 'E' ? '&#11088; Champions League &middot; ' + fx.label + ' &middot; ' + (fx.home ? 'Home' : 'Away') : fx.kind === 'C' ? 'Cup &middot; ' + fx.label : (fx.home ? 'Home' : 'Away') + ' &middot; ' + fx.label}</h3><div id="fixtureMU">${fixtureMU(fx, 52)}</div>
     <button class="btn pri big" data-act="play" id="btnPlay">&#9654; ${S.live ? 'Resume match' : fx.kind === 'E' ? 'Play Champions League ' + (fx.round < 3 ? 'match' : fx.label.toLowerCase()) : fx.kind === 'C' ? 'Play cup ' + fx.label.toLowerCase() : 'Play matchday ' + (fx.week + 1)}</button>
     ${fx.kind === 'C' || (fx.kind === 'E' && fx.round >= 3) ? '<p class="tiny mut" style="margin:8px 0 0;text-align:center">Knockout: a draw goes to penalties.</p>' : fx.kind === 'E' ? '<p class="tiny mut" style="margin:8px 0 0;text-align:center">Group stage: top 2 of 4 reach the semi-finals.</p>' : ''}
-    <div class="pretips" id="pretips">${analysisHTML(fx)}</div></div>`;
+    ${S.live ? '' : talkHTML(fx)}<div class="pretips" id="pretips">${analysisHTML(fx)}</div></div>`;
   }
   tiles.push(['lineup', 'tab', 'lineup', 'Lineup', warns ? warns + ' tip' + (warns > 1 ? 's' : '') : '3-4-3 ready']);
   tiles.push(['train', 'trainnow', '', 'Train', ss.n === 0 ? 'Free session!' : 'Extra sessions']);
@@ -1789,13 +1805,13 @@ function vClub() {
   tiles.push(['shop', 'tab', 'shop', 'Shop', fmt(S.coins) + ' coins']);
   tiles.push(['ach', 'ach', '', 'Awards', Object.keys(S.ach).length + '/' + ACH.length]);
   const tileHTML = `<div class="tiles" id="tiles">${tiles.map(t => `<button class="tile ${t[1] === 'trainnow' && ss.n === 0 ? 'hot' : ''}" data-act="${t[1]}" ${t[2] ? `data-v="${t[2]}"` : ''}>${TILE_ICON[t[0]]}<b>${t[3]}</b><small>${t[4]}</small></button>`).join('')}</div>`;
-  let right = paceCard() + boardHTML() + coachCard() + `<div class="card" id="spiritCard"><h3>Team spirit</h3>${spiritHTML()}</div>` + sessionCard();
+  let right = asstHTML() + paceCard() + boardHTML() + coachCard() + `<div class="card" id="spiritCard"><h3>Team spirit</h3>${spiritHTML()}</div>` + sessionCard();
   if (S.ucl || S.uclNext) right += `<div class="card uclhead" id="uclCard"><h3>&#11088; Champions League</h3><p class="small" style="margin:0 0 8px">${esc(uclStatus())}</p>${S.ucl ? '<button class="btn sm" data-act="goucl" id="btnGoUcl">Groups and knockouts</button>' : ''}</div>`;
   right += `<div class="card"><h3>Cup</h3><p class="small" style="margin:0 0 8px">${esc(cupStatus())}</p><button class="btn sm" data-act="gocup">Cup bracket</button></div>`;
   right += `<div class="card"><h3>Daily bonus</h3>${canDaily() ? `<div class="row"><div class="sp"><b>Day ${S.daily.last === yesterdayStr() ? S.daily.streak + 1 : 1}</b> &middot; ${fmt(150 + 50 * Math.min((S.daily.last === yesterdayStr() ? S.daily.streak : 0), 6))} coins<div class="small mut">Come back daily for a bigger streak bonus.</div></div><button class="btn pri" data-act="daily" id="btnDaily">Claim</button></div><button class="btn ad sm" style="margin-top:8px" data-act="daily_ad"><span class="adtag">AD</span>Claim double</button>` : `<div class="small mut">Claimed today. Streak: <b style="color:var(--amber)">${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}</b>. Back tomorrow!</div>`}</div>`;
   const inj = S.squad.filter(p => p.inj).length, tired = S.squad.filter(p => p.fit < 60).length;
   right += `<div class="card"><h3>Squad health</h3><div class="row small"><span>Tired: <b>${tired}</b></span><span>Injured: <b>${inj}</b></span><span class="sp"></span><button class="btn ad sm" data-act="recover_ad" ${tired || inj ? '' : 'disabled'}><span class="adtag">AD</span>Instant recovery</button></div></div>`;
-  let left = h + tileHTML;
+  let left = paceStrip() + evCardHTML() + h + tileHTML;
   if (S.last) left += `<div class="card"><h3>Last match${S.last.kind === 'C' ? ' (cup)' : ''}</h3><div class="row"><b style="font-size:18px">${S.last.resShown === 'W' ? 'Win' : S.last.resShown === 'D' ? 'Draw' : 'Loss'} ${S.last.my}-${S.last.op}</b><span class="mut small">vs ${esc(S.last.oppName)}</span></div></div>`;
   return `<div class="home3"><div>${left}</div><div>${right}</div></div>`;
 }
@@ -1962,7 +1978,7 @@ function openMatch() {
   if (S.endSummary || !myFixture()) return;
   if (!S.live && !paceTake()) return; // v7: a new match uses a match ticket
   const info = prepareMatch(), m = info.m, fx = info.fx, el = $('#match'), L = S.live;
-  MS = { info, m, fx, speed: S.settings.speed || 1, skip: false, timer: null, ht: false, done: false, ball: { x: 50, y: 50, tx: 50, ty: 50, rate: 7 }, dots: [[], []], cele: null, tos: [], last: 0, near: null, pendMent: null, ap: new Set() }; m.bst = [null, null];
+  MS = { info, m, fx, speed: S.settings.speed || 1, skip: false, timer: null, ht: false, done: false, ball: { x: 50, y: 50, tx: 50, ty: 50, rate: 7 }, dots: [[], []], cele: null, tos: [], last: 0, near: null, pendMent: null, ap: new Set() }; m.bst = [null, null]; bcPlan(L);
   const H = m.sides[0], A = m.sides[1];
   MS.kit = [H.c[0], clashD(H.c[0], A.c[0]) < 110 ? A.c[1] : A.c[0]];
   MS.kit2 = [H.c[1], MS.kit[1] === A.c[1] ? A.c[0] : A.c[1]];
@@ -2069,6 +2085,7 @@ function tick() {
   const m = MS.m, ev = E.step(m); let delay = 380, shot = null;
   ev.forEach(e => { if (e.type === 'poss') { if (!MS.skip) carry(e.side); return; } feedEv(e); if (e.type === 'goal' || e.type === 'save' || e.type === 'miss' || e.type === 'post') shot = e; });
   paint();
+  if (bcCheck()) return; // v8 big-chance skill moment pauses the match
   if (shot && !MS.skip) { animShot(shot); delay = shot.type === 'goal' ? 2500 : shot.type === 'save' ? 1250 : 1000; }
   if (m.min % 5 === 0 && S.live) { S.live.min = m.min; save(); }
   const momPend = isC() && m.min !== 45 && checkMoment();
@@ -2086,7 +2103,7 @@ function skipToEnd() {
   if (MOMS) { cancelAnimationFrame(MOMS.raf); const mo = MOMS.mo; mo.q = autoQ(mo); MS.ap.add(mo.min); MOMS = null; momentEvents(mo).forEach(e => feedEv(e, true)); }
   if (!$('#mmodal').hidden) $('#mmodal').hidden = true;
   MS.dots.forEach(a => a.forEach(d => { d.ox = d.oy = null; })); MS.ball.tx = 50; MS.ball.ty = 50;
-  while (!m.over) { E.step(m).forEach(e => { if (e.type !== 'poss') feedEv(e, true); }); if (m.min === 45 && !MS.ht) { MS.ht = true; coachSub(); feed(45, E.lineText('half', Math.random, { h: m.sides[0].name, a: m.sides[1].name, hs: m.score[0], as: m.score[1] }), 'sys'); } if (isC() && m.min !== 45) checkMoment(); }
+  while (!m.over) { E.step(m).forEach(e => { if (e.type !== 'poss') feedEv(e, true); }); bcAuto(m); if (m.min === 45 && !MS.ht) { MS.ht = true; coachSub(); feed(45, E.lineText('half', Math.random, { h: m.sides[0].name, a: m.sides[1].name, hs: m.score[0], as: m.score[1] }), 'sys'); } if (isC() && m.min !== 45) checkMoment(); }
   paint(); endMatchView();
 }
 function paint(force) {
@@ -2112,7 +2129,7 @@ function showHT() {
   }
   mm.innerHTML = `<div class="modal"><div class="mtop">${backBtn('mback', 'Back')}</div><h2 style="text-align:center">Half-time</h2><div id="htMU">${matchupHTML(H, A, { size: 36, you: my, ha: true, str: sideStr(m), mid: `<div class="vs">VS</div><div class="sc" style="font-size:30px">${m.score[0]} - ${m.score[1]}</div>` })}</div>
   <p class="small mut" style="text-align:center">Shots ${m.shots[0]}-${m.shots[1]} &middot; On target ${m.sot[0]}-${m.sot[1]} &middot; Possession ${Math.round(m.poss[0] / ((m.poss[0] + m.poss[1]) || 1) * 100)}%-${Math.round(m.poss[1] / ((m.poss[0] + m.poss[1]) || 1) * 100)}%</p>
-  <h3 class="small mut" style="margin:10px 0 6px">TEAM TALK: CHANGE MENTALITY</h3><div class="pills" id="htPills">${Object.keys(E.MENTALITY).map(k => `<button class="pill ${m.sides[my].mentality === k ? 'on' : ''}" data-act="htment" data-v="${k}">${E.MENTALITY[k].label}</button>`).join('')}</div>${htSubsHTML()}<button class="btn pri big" style="margin-top:14px" data-act="htgo" id="htgo">Start second half</button></div>`;
+  <h3 class="small mut" style="margin:10px 0 6px">TEAM TALK: CHANGE MENTALITY</h3><div class="pills" id="htPills">${Object.keys(E.MENTALITY).map(k => `<button class="pill ${m.sides[my].mentality === k ? 'on' : ''}" data-act="htment" data-v="${k}">${E.MENTALITY[k].label}</button>`).join('')}</div>${htTalkHTML()}${htSubsHTML()}<button class="btn pri big" style="margin-top:14px" data-act="htgo" id="htgo">Start second half</button></div>`;
 }
 function htSubsHTML() {
   const m = MS.m, my = MS.info.myIdx, L = S.live, subs = L.subs || [], slots = m.sides[my].slots, on = new Set(slots.map(x => x.p.id));
@@ -2126,7 +2143,7 @@ function htSubsHTML() {
 }
 function endMatchView() {
   if (MS.done) return; MS.done = true; clearTimeout(MS.timer); MS.tos.forEach(clearTimeout); PortalSDK.gameplayStop(); sfx.whistle();
-  const info = MS.info, m = MS.m; finishMatch(info); v7after(); renderTop();
+  const info = MS.info, m = MS.m; finishMatch(info); v7after(); v8after(info); renderTop();
   { const bl = $('#mball'); if (bl) bl.style.display = 'none'; const fx = $('#mfx'); if (fx) fx.innerHTML = ''; const gb = $('#gban'); if (gb) { gb.className = 'gbanner'; gb.textContent = ''; } MS.near && MS.near.el.classList.remove('hasball'); document.body.classList.add('lowtoast'); }
   const L = S.last, H = m.sides[0], A = m.sides[1], mm = $('#mmodal'); mm.hidden = false;
   feed(90, E.lineText('full', Math.random, { h: H.name, a: A.name, hs: m.score[0], as: m.score[1] }), 'sys');
@@ -2469,7 +2486,7 @@ document.addEventListener('click', e => {
     case 'momgo': momTap(); break;
   }
 });
-window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason(), ff: ms => devFF(ms), paceSync: () => paceSync(), paceOn: () => paceOn(), search: f => doSearch(f), tokens: () => showTokens() } }; // debug handle used by the headless test
+window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason(), ff: ms => devFF(ms), paceSync: () => paceSync(), paceOn: () => paceOn(), search: f => doSearch(f), tokens: () => showTokens(), bcFinish: q => bcFinish(q), asst: () => asstTips(), talk: k => doTalk(k, myFixture()), chat: (id, k) => doChat(id, k) } }; // debug handle used by the headless test
 
 /* ---------- training sessions (before each match) + mini games ---------- */
 const MAX_SESS = 3; // 1 free + 2 extra (rewarded ad placeholder) per matchday
@@ -2495,7 +2512,7 @@ function runSession(mult, grade) {
 function sessionCard() {
   const ss = sess(), keys = Object.keys(E.FOCUS), free = ss.n === 0, extraLeft = MAX_SESS - Math.max(ss.n, 1);
   return `<div class="card" id="trainCard"><h3>Training &middot; this matchday</h3><div class="topts" id="trainPills">${keys.map(k => `<button class="topt ${S.training === k ? 'on' : ''}" data-act="train" data-v="${k}"><b>${E.FOCUS[k].label}</b><span>${trainInfo(k)}</span></button>`).join('')}</div>
-  <div class="row" style="margin-top:10px;gap:8px"><button class="btn pri sp" data-act="session" id="btnSession" ${free ? '' : 'disabled'}>${free ? (E.FOCUS[S.training].attr ? '&#9654; Start free session (mini game)' : '&#9654; Start free session') : 'Free session done'}</button></div>
+  ${intHTML()}<div class="row" style="margin-top:10px;gap:8px"><button class="btn pri sp" data-act="session" id="btnSession" ${free ? '' : 'disabled'}>${free ? (E.FOCUS[S.training].attr ? '&#9654; Start free session (mini game)' : '&#9654; Start free session') : 'Free session done'}</button></div>
   <div class="sesscount tiny" id="sessCount">Free session: <b>${free ? 'ready' : 'used'}</b> &middot; Ad extras: <b>${Math.max(0, ss.n - 1)}/2 used</b></div><button class="btn ad" style="margin-top:6px;width:100%" data-act="extra_session" id="btnExtra" ${!free && extraLeft > 0 ? '' : 'disabled'}><span class="adtag">AD</span>${free ? 'Extra session (use the free one first)' : extraLeft > 0 ? 'Watch an ad: extra session (' + Math.max(0, ss.n - 1) + '/2 used)' : 'No extra sessions left today'}</button>
   <p class="tiny mut" style="margin:8px 0 0">One free session per matchday. Skip it and a standard session runs automatically at kick-off. Up to 2 extras per matchday via the rewarded ad (placeholder). Every session fills a progress bar for each player (full = +1 point). Mini game grade scales progress from 0.9x to 1.6x.</p></div>`;
 }
@@ -2503,8 +2520,9 @@ function beginSession() {
   if (sess().n >= MAX_SESS || MG) return;
   if (isC()) return ctBegin();
   const f = S.training;
-  if (E.FOCUS[f].attr) startMini(f, (mult, grade) => { const r = runSession(mult, grade); r.grade = grade; showTrainResult(r); });
-  else showTrainResult(runSession(1));
+  { const cl = tcoolLeft(); if (cl) return toast('Your players are recovering from the last session. Next session in ' + dur(cl) + '.'); }
+  if (E.FOCUS[f].attr) startMini(S.drill === 'quick' ? 'cones' : f, (mult, grade) => { const r = runSession(mult * intM(), grade); r.grade = grade; intAfter(r); showTrainResult(r); });
+  else { const r = runSession(1); if (paceOn()) { S.tcool = NOW() + TCOOL; save(); } showTrainResult(r); }
 }
 function showTrainResult(res) {
   const fo = E.FOCUS[res.focus]; let body = '';
@@ -2529,6 +2547,7 @@ function showTrainResult(res) {
 const MINI = {
   attack: ['Penalty drill', 'Touch and hold anywhere: the crosshair follows your finger. Release to shoot at it. Beat the moving keeper: aim away from him, inside the goal. 8 shots.'],
   mid: ['Dribble drill', 'Drag left and right to steer the dribbler through the gap in each row of cones. 10 gates.'],
+  cones: ['Quick tap drill', 'Tap each glowing cone before it disappears. 12 cones, quick and simple.'],
   defense: ['Goalkeeper drill', 'Drag (or tap) to move your keeper. Watch the red marker: it shows where the next shot is going. 9 shots.']
 };
 const MINI_T = 18000;
@@ -2542,7 +2561,7 @@ function startMini(kind, cb) {
   MG = g;
   const fit = () => { const r = area.getBoundingClientRect(), d = window.devicePixelRatio || 1; cv.width = Math.max(1, r.width * d); cv.height = Math.max(1, r.height * d); g.W = r.width; g.H = r.height; g.ctx = cv.getContext('2d'); g.ctx.setTransform(d, 0, 0, d, 0, 0); };
   fit(); g.fit = fit;
-  const G = { attack: mgPenalty, mid: mgDribble, defense: mgKeeper }[kind](g);
+  const G = { attack: mgPenalty, mid: mgDribble, defense: mgKeeper, cones: mgCones }[kind](g);
   g.G = G; g.total = G.total;
   const pt = e => { const r = area.getBoundingClientRect(); return [E.clamp((e.clientX - r.left) / r.width, 0, 1), E.clamp((e.clientY - r.top) / r.height, 0, 1)]; };
   let held = false;
@@ -2926,7 +2945,7 @@ function vClubC() {
   right += `<div class="card" id="objCard"><h3>Season goals</h3>${objectives().map(o => `<div class="obj ${o.ok ? 'ok' : ''}"><span>${o.ok ? '&#10003;' : '&#9675;'} ${o.t}</span><b>${o.inv ? 'top ' + o.need : (o.dec ? o.have.toFixed(1) : o.have) + ' / ' + o.need}</b></div>`).join('')}<p class="tiny mut" style="margin:6px 0 0">Each goal met at season end pays coins and fame. Awards pay extra.</p></div>`;
   right += `<div class="card"><h3>Daily bonus</h3>${canDaily() ? `<div class="row"><div class="sp"><b>Day ${S.daily.last === yesterdayStr() ? S.daily.streak + 1 : 1}</b> &middot; ${fmt(150 + 50 * Math.min((S.daily.last === yesterdayStr() ? S.daily.streak : 0), 6))} coins</div><button class="btn pri" data-act="daily" id="btnDaily">Claim</button></div><button class="btn ad sm" style="margin-top:8px" data-act="daily_ad"><span class="adtag">AD</span>Claim double</button>` : `<div class="small mut">Claimed today. Streak: <b style="color:var(--amber)">${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}</b>. Back tomorrow!</div>`}</div>`;
   right += `<div class="card"><h3>Your health</h3><div class="row small"><span>Fitness <b>${pl.fit}%</b></span><span>${pl.inj ? `<b style="color:var(--red)">Injured ${pl.inj}</b>` : 'Fit'}</span><span class="sp"></span><button class="btn ad sm" data-act="recover_ad" ${pl.fit < 100 || pl.inj ? '' : 'disabled'}><span class="adtag">AD</span>Instant recovery</button></div></div>`;
-  let left = h + tileHTML;
+  let left = paceStrip() + evCardHTML() + h + tileHTML;
   if (S.last) left += `<div class="card"><h3>Last match${S.last.kind === 'C' ? ' (cup)' : ''}</h3><div class="row"><b style="font-size:18px">${S.last.resShown === 'W' ? 'Win' : S.last.resShown === 'D' ? 'Draw' : 'Loss'} ${S.last.my}-${S.last.op}</b><span class="mut small">vs ${esc(S.last.oppName)}</span>${S.last.car && S.last.car.played ? `<span class="sp"></span><span class="rt ${S.last.car.rating >= 7 ? 'r-ok' : 'r-mid'}">${S.last.car.rating.toFixed(1)}</span>` : ''}</div></div>`;
   return `<div class="home3"><div>${left}</div><div>${right}</div></div>`;
 }
@@ -3111,7 +3130,8 @@ function showTouch() {
 function replayActs(m, my, L) {
   let ch = false;
   (L.subs || []).forEach(x => { if ((x.min == null ? 45 : x.min) !== m.min) return; m.sides[my].slots[x.i] = { p: P(x.pid), role: m.sides[my].slots[x.i].role }; E.pstOf(m, my, x.pid); ch = true; });
-  (L.acts || []).forEach(a => { if (a.min !== m.min) return; ch = true; if (a.k === 'm') m.sides[my].mentality = a.v; else if (a.k === 's') { const s = SHOUTS[a.v]; m.bst[my] = { A: s[2], D: s[3], until: a.min + 10 }; } });
+  (L.acts || []).forEach(a => { if (a.min !== m.min) return; ch = true; if (a.k === 'm') m.sides[my].mentality = a.v; else if (a.k === 's') { const s = SHOUTS[a.v]; m.bst[my] = { A: s[2], D: s[3], until: a.min + 10 }; } else if (a.k === 't') applyHTT(m, my, a); });
+  (L.bc || []).forEach(b => { if (b.min !== m.min) return; if (b.q == null) bcDecide(b, null, L.seed); bcApply(m, my, b, true); });
   if (ch) E.recompute(m);
 }
 function v7act(act, v, b) {
@@ -3137,6 +3157,202 @@ document.addEventListener('click', e => {
 }, true);
 setInterval(() => { if (!S || !S.pace || !paceOn()) return; const n0 = S.pace.n; paceSync(); if (S.pace.n !== n0) { save(); if (!$('#app').hidden && $('#match').hidden && $('#overlay').hidden) render(); return; }
   const el = $('#paceNext'); if (el) el.textContent = S.pace.n >= PACE.max ? 'Full' : 'Next in ' + dur(nextTicketIn()); const w = $('#waitT'); if (w) w.textContent = dur(nextTicketIn()); }, 1000);
+
+/* =====================================================================
+   v8 (Phase 2): big-chance skill moments in live Manager matches, team talks (pre-match + half-time), player morale chats,
+   press / board events with choices, training intensity + real-time cooldown + a quick tap drill, assistant manager advice.
+   Test flag: big chances are OFF under automation unless localStorage 'tg.bc' = '1' ('0' forces off). Season pacing (PACE) unchanged.
+   ===================================================================== */
+const INT = { light: { l: 'Light', m: 0.75, fit: -3, inj: 0, d: '0.75x progress, +3 fitness' }, normal: { l: 'Normal', m: 1, fit: 0, inj: 0, d: '1x progress' }, hard: { l: 'Hard', m: 1.4, fit: 8, inj: 0.2, d: '1.4x progress, -8 fitness, injury risk' } };
+const TCOOL = 2 * 3600e3; // real-time gap between training sessions (only while pacing is on)
+const BC = { autoShot: 0.25, autoSave: 0.75 }; // skipped moments: chance our shot scores / our keeper saves
+function bcOn() { try { const f = localStorage.getItem('tg.bc'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} if (S && S.settings && S.settings.bc === false) return false; return !navigator.webdriver; }
+function v8init(s) { if (!s.tInt) s.tInt = 'normal'; if (!s.drill) s.drill = 'match'; if (s.evq === undefined) s.evq = null; if (!s.tcool) s.tcool = 0; if (!s.talk) s.talk = null; if (!s.chats) s.chats = { ci: -1, ids: {} }; }
+/* ----- big chances ----- */
+function bcPlan(L) {
+  if (!L || isC() || L.bc || !bcOn()) return;
+  const r = E.mulberry32((L.seed ^ 0xbc1d) >>> 0), n = 2 + (r() < 0.5 ? 1 : 0), mins = [];
+  while (mins.length < n) { const x = E.ri(r, 8, 86); if (x >= 43 && x <= 47) continue; if (mins.every(y => Math.abs(y - x) > 8)) mins.push(x); }
+  L.bc = mins.sort((a, b) => a - b).map(min => ({ min, k: r() < 0.55 ? 'shot' : 'save', kx: 0.2 + 0.6 * r(), dir: E.ri(r, 0, 2), q: null, g: null })); save();
+}
+function bcRoll(b, seed) { const r = E.mulberry32((seed ^ (b.min * 7919 + 17)) >>> 0); return r(); }
+function bcDecide(b, q, seed) { // q: 0..1 skill quality, or null = skipped (auto)
+  const x = bcRoll(b, seed);
+  if (b.k === 'shot') { const p = q == null ? BC.autoShot : 0.08 + 0.77 * q; b.g = x < p; } else { const p = q == null ? BC.autoSave : 0.12 + 0.78 * q; b.g = !(x < p); }
+  b.q = q == null ? -1 : Math.round(q * 100) / 100;
+}
+function bcApply(m, my, b, quiet) {
+  const si = b.k === 'shot' ? my : 1 - my, sd = m.sides[si], slots = sd.slots.filter(x => x.role !== 'GK');
+  const fw = slots.filter(x => x.role === 'FWD'), pool = fw.length ? fw : slots, sh = pool[Math.floor(bcRoll(b, 99) * pool.length) % pool.length].p;
+  const kp = m.sides[1 - si].slots.find(x => x.role === 'GK'); m.shots[si]++; m.sot[si]++; m.xgTot[si] += 0.4; const st = E.pstOf(m, si, sh.id); st.sh++; st.sot++;
+  let e;
+  if (b.g) { m.score[si]++; st.g++; m.scorers[si].push({ name: sh.last, min: m.min, pid: sh.id }); e = { min: m.min, type: 'goal', side: si, pid: sh.id, text: `BIG CHANCE: ${sh.last} scores!${si === my ? '' : ' Your keeper could not stop it.'}` }; }
+  else { if (kp) E.pstOf(m, 1 - si, kp.p.id).sv++; e = { min: m.min, type: 'save', side: si, pid: sh.id, text: si === my ? `BIG CHANCE: ${sh.last}'s shot is kept out.` : `BIG CHANCE: your keeper denies ${sh.last}!` }; }
+  m.events.push(e); if (!quiet && MS) { feedEv(e); paint(); if (b.g && !MS.skip) { try { b.k === 'shot' ? sfx.goal() : sfx.whistle(); } catch (er) {} } } else if (MS) feedEv(e, true);
+}
+function bcDue(m) { const L = S.live; return !isC() && L && L.bc ? L.bc.find(b => b.q == null && b.min === m.min) : null; }
+function bcAuto(m) { const b = bcDue(m); if (!b) return; bcDecide(b, null, S.live.seed); bcApply(m, MS.info.myIdx, b, true); save(); }
+function bcCheck() { // called from tick after each minute; returns true when the match pauses for a moment
+  const m = MS.m, b = bcDue(m); if (!b) return false;
+  if (MS.skip) { bcAuto(m); return false; }
+  clearTimeout(MS.timer); MS.timer = null; MS.bc = b; S.live.min = m.min; save(); bcShow(b); return true;
+}
+let BCS = null;
+function bcShow(b) {
+  const mm = $('#mmodal'); mm.hidden = false; const shot = b.k === 'shot';
+  mm.innerHTML = `<div class="modal bcm" id="bcModal"><h2 style="text-align:center;margin:0">${shot ? '&#9917; Big chance!' : '&#129508; Danger!'} <small class="mut">${MS.m.min}'</small></h2>
+  <p class="small" style="text-align:center;margin:4px 0 8px" id="bcHint">${shot ? 'Tap to lock your <b>aim</b> away from the keeper, then tap again to set the <b>power</b> in the green zone.' : 'Their striker is through on goal! Watch the arrow and dive the right way: tap <b>Left</b>, <b>Middle</b> or <b>Right</b> before the bar runs out.'}</p>
+  <div class="bcgoal" id="bcGoal">${shot ? `<i class="bckp" id="bcKp" style="left:${b.kx * 100}%"></i><i class="bcaim" id="bcAim"></i>` : `<i class="bcarrow" id="bcArrow"></i><i class="bckp me" id="bcKp" style="left:50%"></i>`}</div>
+  ${shot ? '<div class="bcpow" id="bcPow"><i class="sweet"></i><i class="needle" id="bcNeedle"></i></div><button class="btn pri big" data-act="bctap" id="bcTap">Lock aim</button>' : '<div class="mbar" style="margin:8px 0"><i id="bcBar" style="width:100%"></i></div><div class="row" style="gap:6px"><button class="btn big sp" data-act="bcdive" data-v="0" id="bcL">&#8592; Left</button><button class="btn big sp" data-act="bcdive" data-v="1" id="bcM">Middle</button><button class="btn big sp" data-act="bcdive" data-v="2" id="bcR">Right &#8594;</button></div>'}
+  <button class="btn sm" style="margin-top:8px;width:100%" data-act="bcskip" id="bcSkip">Let the players handle it (auto)</button></div>`;
+  BCS = { b, t0: performance.now(), stage: 0, aim: 0.5, pow: 0 };
+  const loop = ts => {
+    if (!BCS || BCS.b !== b) return; const t = (ts - BCS.t0) / 1000;
+    if (shot) {
+      if (BCS.stage === 0) { BCS.aim = 0.5 + 0.47 * Math.sin(t * 3.4); const a = $('#bcAim'); if (a) a.style.left = (BCS.aim * 100) + '%'; }
+      else if (BCS.stage === 1) { BCS.pow = 0.5 - 0.5 * Math.cos((t - BCS.t1) * 4.6); const n = $('#bcNeedle'); if (n) n.style.left = (BCS.pow * 100) + '%'; }
+      if (t > 9) return bcFinish(null);
+    } else {
+      const ar = $('#bcArrow'); if (ar && t > 0.5 && !ar.dataset.on) { ar.dataset.on = 1; ar.className = 'bcarrow on d' + b.dir; }
+      const left = Math.max(0, 1 - (t - 0.5) / 1.6), bar = $('#bcBar'); if (bar) bar.style.width = (t < 0.5 ? 100 : left * 100) + '%'; BCS.left = t < 0.5 ? 1 : left;
+      if (t > 2.1) return bcFinish(0);
+    }
+    BCS.raf = requestAnimationFrame(loop);
+  };
+  BCS.raf = requestAnimationFrame(loop);
+}
+function bcShotQ(aim, pow, kx) { const a = E.clamp((Math.abs(aim - kx) - 0.1) / 0.25, 0, 1), edge = aim < 0.04 || aim > 0.96 ? 0.5 : 1, p = pow >= 0.6 && pow <= 0.85 ? 1 : pow > 0.95 ? 0 : pow > 0.85 ? 0.6 : E.clamp(pow / 0.6, 0, 1) * 0.7; return a * edge * p; }
+function bcFinish(q) {
+  if (!BCS) return; const b = BCS.b; cancelAnimationFrame(BCS.raf); BCS = null;
+  bcDecide(b, q, S.live.seed); bcApply(MS.m, MS.info.myIdx, b, false); MS.bc = null; save();
+  const mm = $('#mmodal'), shot = b.k === 'shot', good = shot ? b.g : !b.g;
+  mm.innerHTML = `<div class="modal bcm" id="bcDone"><h2 style="text-align:center;color:${good ? 'var(--green)' : 'var(--red)'}">${shot ? (b.g ? 'GOAL!' : 'Saved!') : (b.g ? 'They score...' : 'SAVED!')}</h2><p class="small mut" style="text-align:center">${q == null ? 'Your players handled it.' : 'Your timing: ' + Math.round(q * 100) + '%.'}</p></div>`;
+  setTimeout(() => { if (!MS || MS.done) return; mm.hidden = true; mm.innerHTML = ''; MS.timer = setTimeout(tick, 300 / MS.speed); }, 1100);
+}
+/* ----- team talks ----- */
+function strengthGap(fx) { try { return myPower().avg - oppAvg(fx.opp); } catch (e) { return 0; } }
+const TALKS = { relax: ['Relax', 'Enjoy it, no pressure'], motivate: ['Motivate', 'Believe in yourselves'], fire: ['Fire up', 'Risky: big lift or nerves'] };
+function talkHTML(fx) {
+  if (isC()) return ''; const done = S.talk && S.talk.ci === S.ci ? S.talk : null;
+  return `<div class="talk" id="talkBox"><h4 class="small mut" style="margin:10px 0 6px">PRE-MATCH TEAM TALK ${done ? '&middot; done' : '(optional)'}</h4>${done ? `<p class="small" id="talkRes">${esc(done.txt)}</p>` : `<div class="talkrow">${Object.keys(TALKS).map(k => `<button class="btn sm talkb" data-act="talk" data-v="${k}" id="talk-${k}"><b>${TALKS[k][0]}</b><small>${TALKS[k][1]}</small></button>`).join('')}</div>`}</div>`;
+}
+function doTalk(k, fx) {
+  if (isC() || S.live || (S.talk && S.talk.ci === S.ci)) return null; const gap = strengthGap(fx), fav = gap >= 3, dog = gap <= -3;
+  let d, txt;
+  if (k === 'relax') { d = fav ? 4 : dog ? -2 : 2; txt = fav ? 'The players are calm and confident.' : dog ? 'Too relaxed against a stronger side: heads drop a little.' : 'The players settle down.'; }
+  else if (k === 'motivate') { d = dog ? 6 : 3; txt = dog ? 'The underdogs believe they can do it!' : 'The players are motivated.'; }
+  else { const r = E.mulberry32((E.hashStr(S.club.name + S.season) + S.ci * 131) >>> 0)(); const ok = r < (dog ? 0.7 : fav ? 0.45 : 0.6); d = ok ? 8 : -4; txt = ok ? 'The dressing room is fired up!' : 'Too much: some players look nervous.'; }
+  S.lineup.forEach(id => { const p = P(id); if (p) p.mor = E.clamp(p.mor + d, 8, 100); });
+  S.talk = { ci: S.ci, k, d, txt: txt + ' Starters\' morale ' + (d >= 0 ? '+' : '') + d + '.' }; save(); return S.talk;
+}
+const HTT = { praise: ['Praise', 'Well done, keep it up'], enc: ['Encourage', 'You can do this'], demand: ['Demand more', 'Not good enough!'] };
+function htTalkEff(k, diff) { if (k === 'praise') return diff > 0 ? [1, 1.06] : diff === 0 ? [1.02, 1.02] : [0.97, 0.97]; if (k === 'enc') return [1.03, 1.03]; return diff < 0 ? [1.08, 1] : diff === 0 ? [1.04, 1] : [0.97, 1]; }
+function htTalkHTML() {
+  if (isC() || !S.live) return ''; const done = (S.live.acts || []).find(a => a.k === 't');
+  return `<h3 class="small mut" style="margin:10px 0 6px">HALF-TIME TEAM TALK</h3><div class="talkrow" id="htTalk">${Object.keys(HTT).map(k => `<button class="btn sm talkb ${done && done.v === k ? 'on' : ''}" data-act="httalk" data-v="${k}" id="ht-${k}" ${done ? 'disabled' : ''}><b>${HTT[k][0]}</b><small>${HTT[k][1]}</small></button>`).join('')}</div>${done ? `<p class="tiny" style="color:var(--green);margin:4px 0">${esc(done.txt || '')}</p>` : ''}`;
+}
+function applyHTT(m, my, a) { const diff = m.score[my] - m.score[1 - my], e = htTalkEff(a.v, diff); m.bst[my] = { A: e[0], D: e[1], until: 90 }; return e; }
+/* ----- player morale chats (player card) ----- */
+function chatsOf() { if (!S.chats || S.chats.ci !== S.ci) S.chats = { ci: S.ci, ids: {} }; return S.chats; }
+function chatHTML(p) {
+  if (isC() || !p || p.me || !S.squad.includes(p)) return ''; const done = chatsOf().ids[p.id];
+  return `<div class="card" id="chatCard" style="margin-top:10px"><h3>Talk to ${esc(p.last)} &middot; morale ${p.mor} (${moodFace(p.mor)})</h3>${done ? `<p class="small" id="chatRes">${esc(done)}</p>` : `<div class="talkrow"><button class="btn sm talkb" data-act="chat" data-pid="${p.id}" data-v="praise" id="chatPraise"><b>Praise</b><small>Best when he plays well</small></button><button class="btn sm talkb" data-act="chat" data-pid="${p.id}" data-v="promise" id="chatPromise"><b>Promise minutes</b><small>+8 now; -12 if he does not start next</small></button><button class="btn sm talkb" data-act="chat" data-pid="${p.id}" data-v="crit" id="chatCrit"><b>Criticise</b><small>Confident players respond</small></button></div><p class="tiny mut">One chat per player each matchday.</p>`}</div>`;
+}
+function doChat(pid, k) {
+  const p = P(pid); if (!p || chatsOf().ids[pid]) return null; let d, t;
+  if (k === 'praise') { const st = p.stats && p.stats.s, avg = st && st.rn ? st.rs / st.rn : 6.5; d = avg >= 6.8 ? 6 : p.mor < 50 ? 4 : 2; t = d >= 6 ? 'He loved hearing that: he has been playing well.' : 'He appreciates it.'; }
+  else if (k === 'promise') { d = 8; p.prom = 1; t = 'He is delighted. Start him next match or he will be upset.'; }
+  else { d = p.mor >= 60 ? 4 : -6; t = d > 0 ? 'He takes it on board and wants to prove you wrong.' : 'He sulks: his confidence drops.'; }
+  p.mor = E.clamp(p.mor + d, 8, 100); chatsOf().ids[pid] = t + ' Morale ' + (d >= 0 ? '+' : '') + d + '.'; save(); return chatsOf().ids[pid];
+}
+/* ----- press / board events ----- */
+function evBank(kind, res) {
+  const tm = TIER_MULT[S.tier];
+  if (kind === 'board') return E.pick(Math.random, [
+    { id: 'funds', t: 'Board meeting', q: `The chairman offers ${fmt(600 * tm)} coins of extra funds if you accept a tougher league target.`, o: [['Accept the funds', { coins: Math.round(600 * tm), exp: -1 }], ['Keep the current target', { coh: 2 }], ['Ask for scouting money instead', { tok: 3, coins: -Math.round(150 * tm) }]] },
+    { id: 'sponsor', t: 'Sponsor request', q: 'A sponsor wants your players at an evening event.', o: [['Agree', { coins: Math.round(300 * tm), fit: -8 }], ['Decline politely', { mor: 2 }]] }]);
+  if (res === 'W') return { id: 'pw', t: 'Press conference', q: 'Great result! Reporters ask: are you contenders now?', o: [['"We fear nobody."', { mor: 5, coh: -3 }], ['"One game at a time."', { coh: 4 }], ['"Credit to the fans."', { coins: Math.round(120 * tm), mor: 1 }]] };
+  if (res === 'L') return { id: 'pl', t: 'Press conference', q: 'A tough defeat. Who is to blame?', o: [['"I take responsibility."', { coh: 5, xp: 10 }], ['"The players must do better."', { mor: -4, coh: 2 }], ['"The referee cost us."', { mor: 3, coins: -Math.round(100 * tm) }]] };
+  return { id: 'pd', t: 'Press conference', q: 'A draw: a point gained or two dropped?', o: [['"A good point."', { mor: 3 }], ['"Not good enough."', { coh: 3, mor: -2 }]] };
+}
+function evApply(o) {
+  const e = o[1], n = [];
+  if (e.mor) { S.squad.forEach(p => p.mor = E.clamp(p.mor + e.mor, 8, 100)); n.push('morale ' + (e.mor > 0 ? '+' : '') + e.mor); }
+  if (e.coh) { S.coh = E.clamp(S.coh + e.coh, 0, 100); n.push('team spirit ' + (e.coh > 0 ? '+' : '') + e.coh); }
+  if (e.coins) { S.coins = Math.max(0, S.coins + e.coins); n.push((e.coins > 0 ? '+' : '') + fmt(e.coins) + ' coins'); }
+  if (e.tok) { S.tok += e.tok; n.push('+' + e.tok + ' tokens'); }
+  if (e.fit) { S.squad.forEach(p => p.fit = E.clamp(p.fit + e.fit, 5, 100)); n.push('fitness ' + e.fit); }
+  if (e.xp) { addXP(e.xp); n.push('+' + e.xp + ' coach XP'); }
+  if (e.exp && S.board) { S.board.exp = Math.max(1, S.board.exp + e.exp); n.push('board target now top ' + S.board.exp); }
+  return n.join(', ');
+}
+function evCardHTML() { const v = S.evq; if (!v || isC()) return ''; return `<div class="card evcard" id="eventCard"><h3>${v.t === 'Press conference' ? '&#127908; ' : '&#128188; '}${esc(v.t)}</h3><p class="small" style="margin:0 0 8px">${esc(v.q)}</p><div class="evopts">${v.o.map((o, i) => `<button class="btn sm" data-act="evpick" data-v="${i}" id="ev${i}">${esc(o[0])}</button>`).join('')}</div></div>`; }
+/* ----- training intensity, cooldown, quick drill ----- */
+const intM = () => (INT[S.tInt] || INT.normal).m;
+function tcoolLeft() { return paceOn() && !isC() ? Math.max(0, (S.tcool || 0) - NOW()) : 0; }
+function intAfter(r) {
+  const I = INT[S.tInt] || INT.normal, notes = [];
+  if (I.fit) { S.lineup.forEach(id => { const p = P(id); if (p) p.fit = E.clamp(p.fit - I.fit, 5, 100); }); notes.push(I.fit > 0 ? 'Starters -' + I.fit + ' fitness' : 'Starters +' + (-I.fit) + ' fitness'); }
+  if (I.inj && Math.random() < I.inj) { const c = S.lineup.map(P).filter(p => p && !p.inj && !p.me); if (c.length) { const p = c[Math.floor(Math.random() * c.length)]; p.inj = 1; notes.push(sname(p) + ' picked up a knock (out 1 match)'); } }
+  if (paceOn()) S.tcool = NOW() + TCOOL; save(); if (notes.length) setTimeout(() => toast(I.l + ' session: ' + notes.join('; ') + '.'), 400);
+}
+function intHTML() {
+  if (isC()) return ''; const cl = tcoolLeft();
+  return `<div class="introw" id="intPills"><span class="tiny mut">INTENSITY</span>${Object.keys(INT).map(k => `<button class="pill ${S.tInt === k ? 'on' : ''}" data-act="tint" data-v="${k}" title="${INT[k].d}">${INT[k].l}</button>`).join('')}</div><p class="tiny mut" style="margin:4px 0" id="intNote">${INT[S.tInt].d}.${cl ? ` <b style="color:var(--amber)" id="tcool">Players are recovering: next session in ${dur(cl)}.</b>` : ''}</p>
+  <div class="introw" id="drillPills"><span class="tiny mut">DRILL</span><button class="pill ${S.drill !== 'quick' ? 'on' : ''}" data-act="tdrill" data-v="match">Match drill</button><button class="pill ${S.drill === 'quick' ? 'on' : ''}" data-act="tdrill" data-v="quick">Quick tap drill</button></div>`;
+}
+function mgCones(g) {
+  const N = 12, T = [], r = Math.random; for (let i = 0; i < N; i++) T.push([0.12 + 0.76 * r(), 0.15 + 0.7 * r()]);
+  let i = 0, shownAt = 0, flash = null;
+  const next = (t, ok) => { flash = { t, ok, x: T[i][0], y: T[i][1] }; if (ok) g.score++; i++; shownAt = t; mgFlash(ok ? 'Nice!' : 'Too slow', ok); };
+  return { total: N, down(x, y) { if (i >= N) return; const tx = T[i][0], ty = T[i][1], dx = (x - tx) * g.W, dy = (y - ty) * g.H; if (Math.hypot(dx, dy) < 44) next(g.lastT || 0, true); }, move() {}, up() {},
+    update(t) { g.lastT = t; if (!shownAt) shownAt = t || 1; if (i < N && t - shownAt > 1300) next(t, false); },
+    draw(t) { const c = g.ctx; mgPitch(c, g.W, g.H); if (i < N) { const pulse = 1 + 0.15 * Math.sin(t / 90); mgDot(c, T[i][0] * g.W, T[i][1] * g.H, 22 * pulse, '#ffb703', '#fff'); c.fillStyle = '#111'; c.font = 'bold 13px sans-serif'; c.textAlign = 'center'; c.fillText('TAP', T[i][0] * g.W, T[i][1] * g.H + 4); }
+      if (flash && t - flash.t < 300) mgDot(c, flash.x * g.W, flash.y * g.H, 30, flash.ok ? 'rgba(46,204,113,.5)' : 'rgba(231,76,60,.5)'); },
+    done() { return i >= N; } };
+}
+/* ----- assistant manager ----- */
+function asstTips() {
+  const t = [], fx = myFixture(), xi = S.lineup.map(P).filter(Boolean);
+  if (S.evq) t.push(['&#127908;', 'Reporters are waiting for your answer. Your choice affects morale or money.']);
+  const tired = xi.filter(p => p.fit < 60); if (tired.length) t.push(['&#128168;', `${tired.slice(0, 2).map(sname).join(' and ')} ${tired.length > 1 ? 'are' : 'is'} tired (${tired.slice(0, 2).map(p => p.fit + '%').join(', ')}). Rest ${tired.length > 1 ? 'them' : 'him'} or use a recovery booster.`]);
+  const by = {}; S.squad.filter(p => !S.lineup.includes(p.id) && !p.inj).forEach(p => { if (!by[p.pos] || E.ovr(p) > E.ovr(by[p.pos])) by[p.pos] = p; });
+  const better = xi.map(p => [p, by[p.pos]]).filter(([a, b]) => b && E.ovr(b) >= E.ovr(a) + 3).sort((a, b) => (E.ovr(b[1]) - E.ovr(b[0])) - (E.ovr(a[1]) - E.ovr(a[0])))[0];
+  if (better) t.push(['&#128203;', `${sname(better[1])} (${E.ovr(better[1])}) is better than ${sname(better[0])} (${E.ovr(better[0])}). Consider starting him.`]);
+  const prom = S.squad.find(p => p.prom && !S.lineup.includes(p.id)); if (prom) t.push(['&#9888;', `You promised ${sname(prom)} minutes. He is not in the XI.`]);
+  const sad = S.squad.filter(p => p.mor < 35 && !p.me); if (sad.length) t.push(['&#128542;', `${sname(sad[0])} is unhappy (morale ${sad[0].mor}). Talk to him on his player card.`]);
+  if (fx) { const g = strengthGap(fx); t.push(['&#9917;', g >= 3 ? `We are stronger than ${fx.opp.name} (+${g.toFixed(0)}). "Go for it" and a relaxed team talk should suit us.` : g <= -3 ? `${fx.opp.name} are stronger (${g.toFixed(0)}). Consider "Park the bus" and a motivating team talk.` : `${fx.opp.name} are a close match. A motivating team talk can make the difference.`]); }
+  if (!isC() && sess().n === 0 && !tcoolLeft()) t.push(['&#127939;', 'The free training session is ready.']);
+  if (S.pace && paceOn() && S.pace.n === 0) t.push(['&#127915;', `No match tickets: the next one arrives in ${dur(nextTicketIn())}. Train, scout or talk to players meanwhile.`]);
+  const exp = S.squad.filter(p => !p.me && p.con <= 1 && E.ovr(p) >= xiAvg()); if (exp.length) t.push(['&#128221;', `${sname(exp[0])}'s contract ends this season. Extend it or he leaves for free.`]);
+  return t;
+}
+function asstHTML() { if (isC()) return ''; const t = asstTips().slice(0, 3); return `<div class="card" id="asstCard"><h3>&#129489;&#8205;&#128188; Assistant manager</h3>${t.length ? t.map(x => `<div class="tip"><span>${x[0]}</span><span class="small">${x[1]}</span></div>`).join('') : '<p class="small mut">All good, boss. Nothing to worry about.</p>'}</div>`; }
+function paceStrip() { if (!S.pace) return ''; paceSync(); const p = S.pace, on = paceOn(); return `<div class="pstrip" id="paceStrip" data-act="tickets"><span class="tkts">${Array.from({ length: PACE.max }, (_, i) => `<i class="tkt ${i < p.n ? 'on' : ''}"></i>`).join('')}</span><b>${p.n}/${PACE.max} match tickets</b><span class="sp"></span><span class="tiny mut">${on ? (p.n >= PACE.max ? 'Full' : 'Next in ' + dur(nextTicketIn())) : 'Test mode'}</span></div>`; }
+/* ----- after a match ----- */
+function v8after(info) {
+  if (!S || !S.last || isC()) return; const L = S.live || {}, snapL = (L.snap && L.snap.l) || S.lineup;
+  S.squad.forEach(p => { if (p.prom) { if (!snapL.includes(p.id)) { p.mor = E.clamp(p.mor - 12, 8, 100); setTimeout(() => toast(sname(p) + ' is upset: you promised him minutes. Morale -12.'), 1400); } delete p.prom; } });
+  if (!S.evq && !S.endSummary) { const n = S.ci; if (n % 4 === 0) S.evq = evBank('board'); else if (n % 2 === 0) S.evq = evBank('press', S.last.resShown); }
+  save();
+}
+function v8act(act, v, b) {
+  switch (act) {
+    case 'talk': { const fx = myFixture(); if (fx && doTalk(v, fx)) { render(); toast(S.talk.txt); } return true; }
+    case 'httalk': { const m = MS.m, my = MS.info.myIdx; if ((S.live.acts || []).some(a => a.k === 't')) return true; const a = { min: m.min, k: 't', v }; const e = applyHTT(m, my, a); E.recompute(m); const pc = x => Math.round((x - 1) * 100); a.txt = `${HTT[v][0]}: attack ${pc(e[0]) >= 0 ? '+' : ''}${pc(e[0])}%, defence ${pc(e[1]) >= 0 ? '+' : ''}${pc(e[1])}% for the second half.`; (S.live.acts = S.live.acts || []).push(a); save(); feed(m.min, 'Team talk: ' + a.txt, 'sys'); showHT(); return true; }
+    case 'chat': { const r = doChat(b.dataset.pid, v); if (r) { const c = $('#chatCard'); if (c) c.outerHTML = chatHTML(P(b.dataset.pid)); toast(r); } return true; }
+    case 'evpick': { const ev = S.evq; if (!ev) return true; const o = ev.o[+v]; const n = evApply(o); S.evq = null; save(); renderTop(); render(); toast(o[0] + ' ' + n + '.'); return true; }
+    case 'tint': S.tInt = v; save(); render(); return true;
+    case 'tdrill': S.drill = v; save(); render(); return true;
+    case 'tickets': { const c = $('#paceCard'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); return true; }
+    case 'bctap': { if (!BCS) return true; if (BCS.stage === 0) { BCS.stage = 1; BCS.t1 = (performance.now() - BCS.t0) / 1000; b.textContent = 'Shoot!'; $('#bcHint').innerHTML = 'Now tap to <b>shoot</b> when the needle is in the green zone.'; } else bcFinish(bcShotQ(BCS.aim, BCS.pow, BCS.b.kx)); return true; }
+    case 'bcdive': { if (!BCS) return true; const ok = +v === BCS.b.dir, k = $('#bcKp'); if (k) k.style.left = [15, 50, 85][+v] + '%'; bcFinish(ok ? 0.5 + 0.5 * (BCS.left || 0) : 0.05); return true; }
+    case 'bcskip': if (BCS) bcFinish(null); return true;
+  }
+  return false;
+}
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-act]'); if (!b || !S) return; if (v8act(b.dataset.act, b.dataset.v, b)) { e.stopPropagation(); e.preventDefault(); } }, true);
+{ const _sp = showPlayer; showPlayer = function (pid) { _sp(pid); const p = P(pid), o = $('#overlay'); if (p && o && !o.hidden && !isC()) { const h = chatHTML(p); if (h) { const box = o.querySelector('.modal') || o; box.insertAdjacentHTML('beforeend', h); } } }; }
 
 /* ---------- boot ---------- */
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#overlay').hidden) closeModal(); });
