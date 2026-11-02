@@ -499,6 +499,17 @@ body.lowtoast #toast{top:auto;bottom:18px}
 .uclq{display:flex;flex-direction:column;gap:4px;margin:10px 0;padding:12px;border-radius:12px;background:linear-gradient(135deg,#0b1f5c,#3b2a8a);border:2px solid #8ab4ff;color:#fff}.uclq b{font-size:17px}.uclq span{font-size:13px;opacity:.9}
 .uclhead{background:linear-gradient(135deg,#0b1f5c,#2a2370);border-color:#8ab4ff}
 
+/* ---------- v7: tokens, match tickets, transfer search, touchline ---------- */
+.tok{display:inline-block;width:14px;height:14px;border-radius:4px;background:linear-gradient(135deg,#a78bfa,#6d28d9);box-shadow:inset 0 0 0 2px rgba(255,255,255,.35);vertical-align:-2px;transform:rotate(45deg) scale(.85)}
+.tokchip{color:inherit;font:inherit;cursor:pointer;margin-left:6px;display:flex;align-items:center;gap:5px}
+.tkts{display:flex;gap:5px;margin-right:8px}.tkt{width:22px;height:14px;border-radius:3px;background:var(--panel2);border:1px dashed rgba(255,255,255,.25)}.tkt.on{background:var(--green);border:0}
+.toklist{margin:4px 0 8px;padding-left:18px;line-height:1.6}
+.packs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.pack{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:10px;background:var(--panel2);border:1px solid rgba(255,255,255,.08);color:inherit;opacity:.6}.pack em{font-size:10px;font-style:normal;color:var(--amber)}
+.flts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.flt{display:flex;flex-direction:column;gap:4px}.flt select{padding:8px;border-radius:8px;background:var(--panel2);color:inherit;border:1px solid rgba(255,255,255,.15);font:inherit}
+.scouted{font-size:9px;font-weight:900;padding:1px 5px;border-radius:5px;background:#6d28d9;color:#fff;vertical-align:2px}
+.shouts{display:grid;grid-template-columns:1fr 1fr;gap:6px}.shout{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:52px}.shout small{font-size:10px;opacity:.75;font-weight:500}
+#touchPanel{max-height:92vh;overflow:auto}
+
 </style>
 </head>
 <body>
@@ -1007,7 +1018,8 @@ const KEY = 'touchlinegaffer.save.v1'; // key name kept so old (v1) saves are fo
    Replace the bodies below with the real portal SDK calls (CrazyGames /
    Poki / GameMonetize ...). Nothing here talks to the network.
    Placements used: 'double_reward', 'instant_recovery', 'free_refresh',
-   'daily_double', 'extra_training'.
+   'daily_double', 'extra_training', 'match_ticket', 'free_tokens' (v7).
+   v7 token packs are a disabled STUB (see PACKS): no payment provider is wired up.
    ===================================================================== */
 const PortalSDK = {
   isPlaceholder: true,
@@ -1055,7 +1067,7 @@ const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + St
 const yesterdayStr = () => { const d = new Date(Date.now() - 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const KEYS = [KEY, 'touchlinegaffer.slot2', 'touchlinegaffer.slot3']; let SLOT = 0, titleView = 'main', newPos = 'FWD';
 function save() { try { localStorage.setItem(KEYS[SLOT], JSON.stringify(S)); localStorage.setItem('touchlinegaffer.lastslot', String(SLOT)); } catch (e) {} }
-function load(i) { try { const s = JSON.parse(localStorage.getItem(KEYS[i == null ? SLOT : i])); return s && s.v >= 1 && s.v <= 6 ? migrate(s) : null; } catch (e) { return null; } }
+function load(i) { try { const s = JSON.parse(localStorage.getItem(KEYS[i == null ? SLOT : i])); return s && s.v >= 1 && s.v <= 7 ? migrate(s) : null; } catch (e) { return null; } }
 const byId = () => { const m = {}; S.squad.forEach(p => m[p.id] = p); return m; };
 const P = id => S.squad.find(p => p.id === id);
 const sname = p => p.first[0] + '. ' + p.last;
@@ -1156,7 +1168,7 @@ const coachTrainMult = () => 1 + 0.04 * (coachLvl() - 1), coachScout = () => coa
 function addXP(n) { // returns { n, up } and pays 150 x level in coins on every level up
   const c = S && S.coach; if (!c || S.mode === 'career' || !(n > 0)) return { n: 0, up: 0 };
   let up = 0; if (c.lvl >= COACH_MAX) return { n, up: 0 }; c.xp += n;
-  while (c.lvl < COACH_MAX && c.xp >= coachNeed(c.lvl)) { c.xp -= coachNeed(c.lvl); c.lvl++; up++; S.coins += 150 * c.lvl; }
+  while (c.lvl < COACH_MAX && c.xp >= coachNeed(c.lvl)) { c.xp -= coachNeed(c.lvl); c.lvl++; up++; S.coins += 150 * c.lvl; S.tok = (S.tok || 0) + TOK.lvl; }
   if (c.lvl >= COACH_MAX) c.xp = 0;
   if (up) setTimeout(() => { toast('Coach level ' + c.lvl + ': ' + COACH_TITLES[c.lvl - 1] + '! +' + fmt(150 * c.lvl) + ' coins'); if (S) renderTop(); }, 500);
   return { n, up };
@@ -1168,7 +1180,7 @@ function newGame(name, colorIdx) {
   const r = Math.random;
   const squad = E.genSquad(59, r, { formation: '3-4-3' });
   S = {
-    v: 6, mode: 'manager', club: { name: name || 'Harbor Lights FC', short: (name || 'HLF').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'HLF', c: COLORS[colorIdx || 0], pat: colorIdx % 4 || 0, id: 'me' },
+    v: 7, mode: 'manager', club: { name: name || 'Harbor Lights FC', short: (name || 'HLF').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'HLF', c: COLORS[colorIdx || 0], pat: colorIdx % 4 || 0, id: 'me' },
     coins: 500, season: 1, tier: 0, week: 0, squad, formation: '3-4-3', mentality: 'balanced', lineup: squad.slice(0, 11).map(p => p.id), training: 'attack',
     up: { train: 1, stadium: 1, scout: 1 }, league: null, market: [], daily: { last: '', streak: 0 }, history: [], trophies: 0,
     last: null, endSummary: null, form: [], settings: { mute: false, speed: 1 }, seen: {}, totalWins: 0,
@@ -1176,7 +1188,7 @@ function newGame(name, colorIdx) {
     star: { cands: E.makeStars(r), done: false }, coach: { xp: 0, lvl: 1 }, autoXI: true, neg: null, sales: 0, ucl: null, uclNext: false, uclWon: 0, board: null
   };
   S.star.cands.forEach(p => p.con = 3);
-  setupSeason(); genMarket(); save();
+  v7init(S); setupSeason(); genMarket(); save();
 }
 function migrate(s) {
   if (s.v === 1) {
@@ -1197,6 +1209,8 @@ function migrate(s) {
     (s.squad || []).forEach(ac); (s.market || []).forEach(ac); if (s.star && s.star.cands) s.star.cands.forEach(ac);
     s.board = s.board || null; s.wagesPaid = s.wagesPaid || 0; s.v = 6;
   }
+  if (s.v === 6) { v7init(s); s.v = 7; } // v7: match tickets (real-time pacing), tokens, scouted market players
+  v7init(s);
   (s.market || []).forEach(p => { if (!p.club) p.club = clubNameFor(p.id, s.club && s.club.name); });
   if (s.coh == null) s.coh = 50;
   (s.squad || []).forEach(pstat);
@@ -1341,8 +1355,8 @@ function lineupWarnings() {
 const achQ = [];
 function unlock(id) {
   if (S.ach[id]) return; const a = ACH.find(x => x[0] === id); if (!a) return;
-  S.ach[id] = Date.now(); S.coins += 100; achQ.push(a[1]); clearTimeout(achQ._t);
-  achQ._t = setTimeout(() => { toast('Achievement unlocked: ' + achQ.splice(0).join(', ') + ' (+100 coins each)'); renderTop(); }, 300);
+  S.ach[id] = Date.now(); S.coins += 100; S.tok = (S.tok || 0) + TOK.ach; achQ.push(a[1]); clearTimeout(achQ._t);
+  achQ._t = setTimeout(() => { toast('Achievement unlocked: ' + achQ.splice(0).join(', ') + ' (+100 coins and +' + TOK.ach + ' tokens each)'); renderTop(); }, 300);
 }
 
 /* ---------- market ---------- */
@@ -1666,7 +1680,7 @@ function claimDaily(double) {
   const d = S.daily, t = todayStr(); if (d.last === t) return 0;
   d.streak = d.last === yesterdayStr() ? d.streak + 1 : 1; d.last = t;
   let amt = 150 + 50 * Math.min(d.streak - 1, 6); if (d.streak % 7 === 0) amt += 300;
-  if (double) amt *= 2; S.coins += amt; save(); return amt;
+  if (double) amt *= 2; S.coins += amt; S.tok = (S.tok || 0) + (d.streak % 7 === 0 ? TOK.daily7 : TOK.daily); save(); return amt;
 }
 const canDaily = () => S.daily.last !== todayStr();
 
@@ -1688,7 +1702,7 @@ window.UI = UI;
 function renderTop() {
   const tn = TIERS[S.tier], fx = S.live ? null : myFixture();
   const where = S.endSummary ? 'Final table' : fx ? (fx.kind === 'E' ? 'Champions Lg ' + UCL_SHORT[fx.round] : fx.kind === 'C' ? 'Cup ' + CUP_SHORT[fx.round] : 'Matchday ' + (fx.week + 1) + '/' + E.WEEKS) : 'Matchday ' + (S.week + 1) + '/' + E.WEEKS;
-  $('#topbar').innerHTML = `${crest(S.club, 34)}<div class="club"><div class="cn">${esc(S.club.name)}</div><div class="cs">${tn} &middot; Season ${S.season} &middot; ${where}</div></div><div class="chip" id="coins">${coinHTML}<span>${fmt(S.coins)}</span></div><button class="iconbtn" data-act="settings" aria-label="Settings">&#9881;</button>`;
+  $('#topbar').innerHTML = `${crest(S.club, 34)}<div class="club"><div class="cn">${esc(S.club.name)}</div><div class="cs">${tn} &middot; Season ${S.season} &middot; ${where}</div></div><div class="chip" id="coins">${coinHTML}<span>${fmt(S.coins)}</span></div><button class="chip tokchip" id="tokens" data-act="tokens" aria-label="Tokens">${tokHTML}<span>${fmt(S.tok || 0)}</span></button><button class="iconbtn" data-act="settings" aria-label="Settings">&#9881;</button>`;
 }
 let renderedTab = null;
 function updateFab() { const f = $('#fab'); if (!f) return; const fx = S && !S.endSummary ? myFixture() : null; f.hidden = !(fx && tab !== 'club' && !$('#app').hidden && $('#match').hidden); if (fx) f.innerHTML = '&#9654; ' + (S.live ? 'Resume' : fx.kind === 'E' ? 'Europe' : fx.kind === 'C' ? 'Cup' : 'Play'); }
@@ -1775,7 +1789,7 @@ function vClub() {
   tiles.push(['shop', 'tab', 'shop', 'Shop', fmt(S.coins) + ' coins']);
   tiles.push(['ach', 'ach', '', 'Awards', Object.keys(S.ach).length + '/' + ACH.length]);
   const tileHTML = `<div class="tiles" id="tiles">${tiles.map(t => `<button class="tile ${t[1] === 'trainnow' && ss.n === 0 ? 'hot' : ''}" data-act="${t[1]}" ${t[2] ? `data-v="${t[2]}"` : ''}>${TILE_ICON[t[0]]}<b>${t[3]}</b><small>${t[4]}</small></button>`).join('')}</div>`;
-  let right = boardHTML() + coachCard() + `<div class="card" id="spiritCard"><h3>Team spirit</h3>${spiritHTML()}</div>` + sessionCard();
+  let right = paceCard() + boardHTML() + coachCard() + `<div class="card" id="spiritCard"><h3>Team spirit</h3>${spiritHTML()}</div>` + sessionCard();
   if (S.ucl || S.uclNext) right += `<div class="card uclhead" id="uclCard"><h3>&#11088; Champions League</h3><p class="small" style="margin:0 0 8px">${esc(uclStatus())}</p>${S.ucl ? '<button class="btn sm" data-act="goucl" id="btnGoUcl">Groups and knockouts</button>' : ''}</div>`;
   right += `<div class="card"><h3>Cup</h3><p class="small" style="margin:0 0 8px">${esc(cupStatus())}</p><button class="btn sm" data-act="gocup">Cup bracket</button></div>`;
   right += `<div class="card"><h3>Daily bonus</h3>${canDaily() ? `<div class="row"><div class="sp"><b>Day ${S.daily.last === yesterdayStr() ? S.daily.streak + 1 : 1}</b> &middot; ${fmt(150 + 50 * Math.min((S.daily.last === yesterdayStr() ? S.daily.streak : 0), 6))} coins<div class="small mut">Come back daily for a bigger streak bonus.</div></div><button class="btn pri" data-act="daily" id="btnDaily">Claim</button></div><button class="btn ad sm" style="margin-top:8px" data-act="daily_ad"><span class="adtag">AD</span>Claim double</button>` : `<div class="small mut">Claimed today. Streak: <b style="color:var(--amber)">${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}</b>. Back tomorrow!</div>`}</div>`;
@@ -1887,19 +1901,19 @@ function vCup() {
   return `<div class="card"><h3>Season ${S.season} Cup</h3><p class="small" style="margin:0 0 8px">${esc(cupStatus())}</p><div class="bracket" id="bracket">${cols}</div><p class="tiny mut" style="margin:8px 0 0">16 clubs, single-leg knockout. A round is played after every third league matchday. A draw goes to penalties. Prize money for every round you win, plus a trophy bonus.</p></div>`;
 }
 function vShop() {
-  const seg = `<div class="seg"><button class="${shopTab === 'upgrades' ? 'on' : ''}" data-act="shoptab" data-v="upgrades">Club upgrades</button><button class="${shopTab === 'transfers' ? 'on' : ''}" data-act="shoptab" data-v="transfers">Transfer market</button></div>`;
+  const seg = `<div class="seg"><button class="${shopTab === 'upgrades' ? 'on' : ''}" data-act="shoptab" data-v="upgrades">Club upgrades</button><button class="${shopTab === 'transfers' ? 'on' : ''}" data-act="shoptab" data-v="transfers">Transfer market</button><button class="${shopTab === 'tokens' ? 'on' : ''}" data-act="shoptab" data-v="tokens">Tokens</button></div>`;
   const up = Object.keys(UPG).map(k => {
     const l = S.up[k], max = l >= 5, c = UPG_COST[l - 1];
     return `<div class="card ucard"><div class="ic">${UICONS[UPG[k].ic]}</div><div><b>${UPG[k].name}</b><div class="lv">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= l ? 'on' : ''}"></i>`).join('')}</div><div class="small mut">${UPG[k].desc(l)}${max ? '' : ' Next: ' + UPG[k].desc(l + 1).split('.')[0].replace(/^Basic.*/, '') + '.'}</div></div>${max ? '<span class="pill on">MAX</span>' : `<button class="btn pri sm" data-act="upgrade" data-v="${k}" ${S.coins < c ? 'disabled' : ''}>${coinHTML} ${fmt(c)}</button>`}</div>`;
   }).join('');
   const mk = S.market.map(p => {
     const a = p.pos === 'GK' ? 'SAV ' + p.gk : `SHO ${p.sho} &middot; PAS ${p.pas} &middot; DEF ${p.def}`;
-    return `<div class="mk" data-lp="1" data-pid="${p.id}"><div class="prow" style="display:contents"><div class="ov" style="width:38px;height:38px;border-radius:10px;background:var(--panel2);display:grid;place-items:center;font-weight:900">${E.ovr(p)}</div><div><div class="nm" style="font-weight:800">${esc(sname(p))} ${posTag(p.pos)}</div><div class="small mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${a}</div><div class="tiny mut">${esc(p.club || '')}</div><button class="btn sm" style="margin-top:4px" data-act="cmp" data-pid="${p.id}">Compare</button></div></div><div class="mkbtns"><button class="btn pri sm" data-act="buy" data-pid="${p.id}" ${S.coins < p.price ? 'disabled' : ''}>${coinHTML} ${fmt(p.price)}</button><button class="btn sm" data-act="negbuy" data-pid="${p.id}" id="nb-${p.id}">Negotiate</button></div></div>`;
+    return `<div class="mk" data-lp="1" data-pid="${p.id}"><div class="prow" style="display:contents"><div class="ov" style="width:38px;height:38px;border-radius:10px;background:var(--panel2);display:grid;place-items:center;font-weight:900">${E.ovr(p)}</div><div><div class="nm" style="font-weight:800">${esc(sname(p))} ${posTag(p.pos)}${p.found ? ' <span class="scouted">SCOUTED</span>' : ''}</div><div class="small mut">Age ${p.age} &middot; Pot ${p.pot} &middot; ${a}</div><div class="tiny mut">${esc(p.club || '')}</div><button class="btn sm" style="margin-top:4px" data-act="cmp" data-pid="${p.id}">Compare</button></div></div><div class="mkbtns"><button class="btn pri sm" data-act="buy" data-pid="${p.id}" ${S.coins < p.price ? 'disabled' : ''}>${coinHTML} ${fmt(p.price)}</button><button class="btn sm" data-act="negbuy" data-pid="${p.id}" id="nb-${p.id}">Negotiate</button></div></div>`;
   }).join('');
   const market = `<div class="card"><div class="row"><h3 class="sp" style="margin:0">Transfer market (${S.market.length})</h3></div><p class="small mut" style="margin:6px 0">New players appear after every match. Squad ${S.squad.length}/24. Your XI averages ${myPower().avg.toFixed(0)}. Hold a player to see his quality and potential.</p>
-  <div class="row" style="margin-bottom:6px"><button class="btn sm" data-act="refresh" ${S.coins < 60 ? 'disabled' : ''}>Refresh ${coinHTML}60</button><button class="btn ad sm" data-act="refresh_ad"><span class="adtag">AD</span>Free refresh</button></div>${mk}</div>`;
-  if (window.innerWidth >= 900) return `<div class="grid2"><div><h3 class="mut small" style="margin-bottom:8px">CLUB UPGRADES</h3>${up}</div>${market}</div>`;
-  return seg + (shopTab === 'upgrades' ? up : market);
+  <div class="row" style="margin-bottom:6px"><button class="btn sm" data-act="refresh" ${S.coins < 60 ? 'disabled' : ''}>Refresh ${coinHTML}60</button><button class="btn ad sm" data-act="refresh_ad"><span class="adtag">AD</span>Free refresh</button><button class="btn pri sm" data-act="tsearch" id="btnSearch">&#128269; Search ${tokHTML}${TOK.search}</button></div>${mk}</div>`;
+  if (window.innerWidth >= 900) return `<div class="grid2"><div><h3 class="mut small" style="margin-bottom:8px">CLUB UPGRADES</h3>${up}${tokensHTML()}</div>${market}</div>`;
+  return seg + (shopTab === 'upgrades' ? up : shopTab === 'tokens' ? tokensHTML() : market);
 }
 
 /* ---------- player detail card (long press) ---------- */
@@ -1946,6 +1960,7 @@ const clashD = (a, b) => { const p = v => [1, 3, 5].map(i => parseInt(v.slice(i,
 function later(fn, ms) { const ms0 = MS; const t = setTimeout(() => { if (MS === ms0 && !ms0.skip && !ms0.done) fn(); }, ms / MS.speed); MS.tos.push(t); }
 function openMatch() {
   if (S.endSummary || !myFixture()) return;
+  if (!S.live && !paceTake()) return; // v7: a new match uses a match ticket
   const info = prepareMatch(), m = info.m, fx = info.fx, el = $('#match'), L = S.live;
   MS = { info, m, fx, speed: S.settings.speed || 1, skip: false, timer: null, ht: false, done: false, ball: { x: 50, y: 50, tx: 50, ty: 50, rate: 7 }, dots: [[], []], cele: null, tos: [], last: 0, near: null, pendMent: null, ap: new Set() }; m.bst = [null, null];
   const H = m.sides[0], A = m.sides[1];
@@ -1958,13 +1973,13 @@ function openMatch() {
     <div class="mcrowd" id="mcrowd">${crowdSVG(S.up.stadium)}</div><div class="mpitch" id="mpitch">${pitchBG(false)}<div class="goalnet l"></div><div class="goalnet r"></div>${dots}<i class="btr"></i><i class="btr"></i><i class="btr"></i><i class="btr"></i><div class="ball" id="mball"></div><div id="mfx"></div><div class="gbanner" id="gban"></div></div>
     <div class="tl" id="tline"></div><div class="mscorers" id="mscorers"></div></div>
   <div class="mright"><div class="live" id="mlive"></div><ul class="feed" id="mfeed"></ul></div>
-  <div class="mctl"><button class="btn" data-act="mspeed" id="mspeed">Speed ${MS.speed}x</button><button class="btn pri" data-act="mskip" id="mskipbtn">Skip to full-time &#9654;&#9654;</button></div><div class="mmodal" id="mmodal" hidden></div></div>`;
+  <div class="mctl"><button class="btn" data-act="mspeed" id="mspeed">Speed ${MS.speed}x</button>${isC() ? '' : '<button class="btn" data-act="tline" id="mtouch">&#128227; Touchline</button>'}<button class="btn pri" data-act="mskip" id="mskipbtn">Skip to full-time &#9654;&#9654;</button></div><div class="mmodal" id="mmodal" hidden></div></div>`;
   el.hidden = false; $('#app').style.visibility = 'hidden';
   document.querySelectorAll('#match .dot').forEach(d => { const si = +d.dataset.s, i = +d.dataset.i, b = baseXY(si, i, 50); MS.dots[si][i] = { el: d, si, i, x: b[0], y: b[1], role: E.FORMATIONS[m.sides[si].formation][i].r, ph: Math.random() * 6 }; });
   PortalSDK.gameplayStart();
   const rnd = Math.random, tx = { h: H.name, a: A.name, t: H.name, x: E.MENT_SHORT[H.mentality] };
   if (L.min > 0) { // resumed after a refresh: replay the very same match up to where it was
-    while (m.min < L.min && !m.over) { E.step(m).forEach(e => { if (e.type !== 'poss') feedEv(e, true); }); if (m.min === 45) { if (L.ment) m.sides[info.myIdx].mentality = L.ment; (L.subs || []).forEach(x => { m.sides[info.myIdx].slots[x.i] = { p: P(x.pid), role: m.sides[info.myIdx].slots[x.i].role }; E.pstOf(m, info.myIdx, x.pid); }); E.recompute(m); } replayMoments(); }
+    while (m.min < L.min && !m.over) { E.step(m).forEach(e => { if (e.type !== 'poss') feedEv(e, true); }); replayActs(m, info.myIdx, L); if (m.min === 45) { if (L.ment) m.sides[info.myIdx].mentality = L.ment; E.recompute(m); } replayMoments(); }
     feed(0, 'Match resumed at ' + m.min + "'. Same match, same result: nothing is re-rolled.", 'sys'); MS.ht = m.min >= 45; paint(true);
     const pend = isC() && !m.over && m.min !== 45 && checkMoment();
     if (m.min === 45 && !L.htDone) showHT(); else if (!pend) MS.timer = setTimeout(tick, 600 / MS.speed);
@@ -2111,7 +2126,7 @@ function htSubsHTML() {
 }
 function endMatchView() {
   if (MS.done) return; MS.done = true; clearTimeout(MS.timer); MS.tos.forEach(clearTimeout); PortalSDK.gameplayStop(); sfx.whistle();
-  const info = MS.info, m = MS.m; finishMatch(info); renderTop();
+  const info = MS.info, m = MS.m; finishMatch(info); v7after(); renderTop();
   { const bl = $('#mball'); if (bl) bl.style.display = 'none'; const fx = $('#mfx'); if (fx) fx.innerHTML = ''; const gb = $('#gban'); if (gb) { gb.className = 'gbanner'; gb.textContent = ''; } MS.near && MS.near.el.classList.remove('hasball'); document.body.classList.add('lowtoast'); }
   const L = S.last, H = m.sides[0], A = m.sides[1], mm = $('#mmodal'); mm.hidden = false;
   feed(90, E.lineText('full', Math.random, { h: H.name, a: A.name, hs: m.score[0], as: m.score[1] }), 'sys');
@@ -2438,9 +2453,9 @@ document.addEventListener('click', e => {
     case 'adclose': if (UI._adFin) UI._adFin(false); break;
     case 'mspeed': MS.speed = MS.speed % 3 + 1; S.settings.speed = MS.speed; save(); b.textContent = 'Speed ' + MS.speed + 'x'; break;
     case 'mskip': b.disabled = true; skipToEnd(); break;
-    case 'subout': MS.subOut = +v; showHT(); break;
-    case 'subcancel': MS.subOut = null; showHT(); break;
-    case 'subin': { const m = MS.m, my = MS.info.myIdx, i = MS.subOut, old = m.sides[my].slots[i].p; m.sides[my].slots[i] = { p: P(pid), role: m.sides[my].slots[i].role }; E.pstOf(m, my, pid); E.recompute(m); (S.live.subs = S.live.subs || []).push({ i, pid, out: old.id }); MS.subOut = null; save(); showHT(); break; }
+    case 'subout': MS.subOut = +v; MS.paused ? showTouch() : showHT(); break;
+    case 'subcancel': MS.subOut = null; MS.paused ? showTouch() : showHT(); break;
+    case 'subin': { const m = MS.m, my = MS.info.myIdx, i = MS.subOut, old = m.sides[my].slots[i].p; m.sides[my].slots[i] = { p: P(pid), role: m.sides[my].slots[i].role }; E.pstOf(m, my, pid); E.recompute(m); (S.live.subs = S.live.subs || []).push({ i, pid, out: old.id, min: m.min }); MS.subOut = null; save(); MS.paused ? showTouch() : showHT(); break; }
     case 'htment': MS.m.sides[MS.info.myIdx].mentality = v; MS.pendMent = v; E.recompute(MS.m); document.querySelectorAll('#htPills .pill').forEach(p => p.classList.toggle('on', p.dataset.v === v)); break;
     case 'htgo': $('#mmodal').hidden = true; if (S.live) { S.live.ment = MS.m.sides[MS.info.myIdx].mentality; S.live.htDone = true; S.live.min = 45; save(); } MS.timer = setTimeout(tick, 400 / MS.speed); break;
     case 'doublereward': rewarded('double_reward', () => { if (S.last && !S.last.doubled) { S.last.doubled = true; S.coins += S.last.reward; save(); renderTop(); sfx.coin(); const r = $('#rewardLine'); if (r) r.innerHTML = coinHTML + '<span>+' + fmt(S.last.reward * 2) + ' (doubled!)</span>'; const bd = $('#btnDouble'); if (bd) bd.disabled = true; } }); break;
@@ -2454,7 +2469,7 @@ document.addEventListener('click', e => {
     case 'momgo': momTap(); break;
   }
 });
-window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason() } }; // debug handle used by the headless test
+window.__tg = { get state() { return S; }, engine: E, get ms() { return MS; }, get mg() { return MG; }, fn: { endSeason: () => endSeason(), nextSeason: () => goNextSeason(), showEnd: () => showEnd(), render: () => { renderTop(); render(); }, myFixture: () => myFixture(), pgrade: p => pgrade(p), wageBill: () => wageBill(), wageBudget: () => wageBudget(), showPlayer: id => showPlayer(id), startNextSeason: () => startNextSeason(), ff: ms => devFF(ms), paceSync: () => paceSync(), paceOn: () => paceOn(), search: f => doSearch(f), tokens: () => showTokens() } }; // debug handle used by the headless test
 
 /* ---------- training sessions (before each match) + mini games ---------- */
 const MAX_SESS = 3; // 1 free + 2 extra (rewarded ad placeholder) per matchday
@@ -2987,6 +3002,141 @@ const CTUT = [
   ['Key moments', 'Three times a match something happens to you: a shot, a through-ball, a tackle, a save. Stop the marker inside the green zone to succeed. Skip the match and the game plays them for you, with lower odds.'],
   ['Seasons, awards and offers', 'Hit your season goals for coins and fame. Win awards like Golden Boot. At season end, clubs make you offers: stay, or move up a league for more pay and tougher matches.']
 ];
+
+/* =====================================================================
+   v7: real-time pacing (match tickets + fitness that recovers over real time), tokens (earn + spend + STUB shop),
+   transfer search with filters (costs tokens), live Touchline panel (mentality, subs and shouts at any minute).
+   Test/dev flags: pacing is OFF under browser automation (navigator.webdriver) unless localStorage 'tg.pace' = '1';
+   localStorage 'tg.pace' = '0' forces it off. localStorage 'tg.devoff' (ms) shifts the clock; __tg.fn.ff(ms) adds to it.
+   ===================================================================== */
+const PACE = { max: 3, regen: 4 * 3600e3, adCut: 3600e3, adMax: 3, fitPerH: 4 };
+const TOK = { start: 15, daily: 2, daily7: 6, win: 1, ach: 2, lvl: 3, season: 5, ad: 2, adMax: 3, skip: 3, search: 3, booster: 2, boost: 30, extra: 2 };
+/* STUB ONLY: no payment provider is connected. Prices are placeholders and every button is disabled. Needs the owner's approval before anything is wired up. */
+const PACKS = [['Handful', 30], ['Bag', 80], ['Chest', 200], ['Vault', 500]];
+const SHOUTS = { enc: ['Encourage', 'Small lift all over the pitch', 1.05, 1.05], dem: ['Demand more', 'Push forward, a little looser at the back', 1.1, 0.95], tight: ['Tighten up', 'Protect the lead', 0.95, 1.1], calm: ['Calm down', 'Steady the side', 1.0, 1.06] };
+const tokHTML = '<i class="tok"></i>';
+const devOff = () => { try { return +(localStorage.getItem('tg.devoff') || 0) || 0; } catch (e) { return 0; } };
+const NOW = () => Date.now() + devOff();
+function devFF(ms) { try { localStorage.setItem('tg.devoff', String(devOff() + (+ms || 0))); } catch (e) {} if (S) { paceSync(); save(); } return NOW(); }
+function paceOn() { try { const f = localStorage.getItem('tg.pace'); if (f === '1') return true; if (f === '0') return false; } catch (e) {} return !navigator.webdriver; }
+function v7init(s) {
+  if (!s.pace) s.pace = { n: PACE.max, at: NOW(), rec: NOW(), ads: { d: '', n: 0 }, tads: { d: '', n: 0 } };
+  if (s.tok == null) s.tok = TOK.start;
+}
+const dur = ms => { ms = Math.max(0, ms); const h = Math.floor(ms / 3600e3), m = Math.ceil((ms % 3600e3) / 60e3); return h ? h + 'h ' + (m === 60 ? 59 : m) + 'm' : Math.max(1, m) + 'm'; };
+function dayN(k) { const t = todayStr(), o = S.pace[k] || (S.pace[k] = { d: t, n: 0 }); if (o.d !== t) { o.d = t; o.n = 0; } return o; }
+function paceSync() {
+  if (!S || !S.pace || !paceOn()) return; const p = S.pace, now = NOW();
+  if (p.n >= PACE.max) p.at = now;
+  else { const k = Math.floor((now - p.at) / PACE.regen); if (k > 0) { p.n = Math.min(PACE.max, p.n + k); p.at = p.n >= PACE.max ? now : p.at + k * PACE.regen; } }
+  if (S.live) { p.rec = now; return; } // never touch fitness mid-match (a refresh must replay the same match)
+  if (p.rec == null || p.rec > now) p.rec = now;
+  const add = Math.floor((now - p.rec) / 3600e3 * PACE.fitPerH);
+  if (add > 0) { S.squad.forEach(pl => { pl.fit = Math.min(100, pl.fit + add); }); p.rec += add / PACE.fitPerH * 3600e3; }
+}
+const nextTicketIn = () => S.pace.n >= PACE.max ? 0 : S.pace.at + PACE.regen - NOW();
+function spendTok(n, what) { if ((S.tok || 0) < n) { toast(`Not enough tokens (${what} needs ${n}). Earn more in Shop > Tokens.`); return false; } S.tok -= n; save(); renderTop(); return true; }
+function paceTake() {
+  if (!paceOn()) return true; paceSync();
+  if (S.pace.n > 0) { if (S.pace.n >= PACE.max) S.pace.at = NOW(); S.pace.n--; save(); return true; }
+  showWait(); return false;
+}
+function showWait() {
+  const ad = dayN('ads');
+  modal(`<div id="waitModal"><h2>Your players need a rest</h2><p>You have used all ${PACE.max} match tickets. The next one is ready in <b id="waitT">${dur(nextTicketIn())}</b>.</p>
+  <p class="small mut">Real clubs don't play every few minutes. Come back later: fitness keeps recovering while you're away (+${PACE.fitPerH} an hour). Use the time to train, scout and set your lineup.</p>
+  <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button class="btn pri" data-act="pskip" id="btnKickNow" ${S.tok < TOK.skip ? 'disabled' : ''}>Kick off now ${tokHTML} ${TOK.skip}</button>
+  <button class="btn ad" data-act="pad" id="btnWaitAd" ${ad.n >= PACE.adMax ? 'disabled' : ''}><span class="adtag">AD</span>1 hour sooner (${PACE.adMax - ad.n} left today)</button>
+  <button class="btn" data-act="close">Later</button></div><p class="tiny mut">You have ${fmt(S.tok)} tokens.</p></div>`);
+}
+function paceCard() {
+  if (!S.pace) v7init(S); paceSync(); const p = S.pace, on = paceOn();
+  return `<div class="card" id="paceCard"><h3>Match tickets</h3><div class="row"><span class="tkts">${Array.from({ length: PACE.max }, (_, i) => `<i class="tkt ${i < p.n ? 'on' : ''}"></i>`).join('')}</span><b id="paceN">${p.n}/${PACE.max}</b><span class="sp"></span><span class="small mut" id="paceNext">${on ? (p.n >= PACE.max ? 'Full' : 'Next in ' + dur(nextTicketIn())) : 'Pacing off (test mode)'}</span></div>
+  <p class="tiny mut" style="margin:6px 0">Each match uses a ticket, and a new one arrives every ${PACE.regen / 3600e3} hours. Fitness recovers in real time (+${PACE.fitPerH} an hour), so rotate tired players.</p>
+  <div class="row" style="flex-wrap:wrap;gap:6px"><button class="btn sm" data-act="pboost" id="btnBoost">Recovery +${TOK.boost} ${tokHTML}${TOK.booster}</button><button class="btn sm" data-act="extra_tok" id="btnExtraTok">Extra training ${tokHTML}${TOK.extra}</button><button class="btn sm" data-act="tokens">Get tokens</button></div></div>`;
+}
+function v7after() {
+  if (!S || !S.last) return; let g = 0;
+  if (!isC() && S.last.resShown === 'W' && !S.last.tokGot) { g += TOK.win; S.last.tokGot = TOK.win; }
+  if (S.endSummary && !S.endSummary.tokPaid) { S.endSummary.tokPaid = TOK.season; g += TOK.season; }
+  if (g) { S.tok = (S.tok || 0) + g; setTimeout(() => toast('+' + g + ' token' + (g > 1 ? 's' : '')), 900); }
+  if (S.pace) S.pace.rec = NOW(); save();
+}
+function tokensHTML() {
+  const ad = dayN('tads');
+  return `<div class="card" id="tokCard"><h3>${tokHTML} Tokens: <span id="tokBal">${fmt(S.tok || 0)}</span></h3><p class="small mut" style="margin:4px 0 8px">Tokens buy time and information, never better ratings.</p>
+  <h4 class="small mut">EARN FOR FREE</h4><ul class="small toklist"><li>Daily bonus: +${TOK.daily} (7th day of a streak: +${TOK.daily7})</li><li>Each league or cup win: +${TOK.win}</li><li>Each achievement: +${TOK.ach}</li><li>Coach level up: +${TOK.lvl}</li><li>Finish a season: +${TOK.season}</li></ul>
+  <button class="btn ad sm" data-act="tokad" id="btnTokAd" ${ad.n >= TOK.adMax ? 'disabled' : ''}><span class="adtag">AD</span>Watch an ad: +${TOK.ad} tokens (${TOK.adMax - ad.n} left today)</button>
+  <h4 class="small mut" style="margin-top:12px">SPEND</h4><ul class="small toklist"><li>Kick off now without a match ticket: ${TOK.skip}</li><li>Transfer search with filters: ${TOK.search}</li><li>Recovery booster (+${TOK.boost} fitness, whole squad): ${TOK.booster}</li><li>Extra training session: ${TOK.extra}</li></ul>
+  <h4 class="small mut" style="margin-top:12px">TOKEN PACKS</h4><div class="packs" id="packs">${PACKS.map(([n, t]) => `<button class="pack" disabled data-act="buypack" data-v="${t}">${tokHTML}<b>${t}</b><small>${n}</small><em>Coming soon</em></button>`).join('')}</div>
+  <p class="tiny mut" id="shopStub">The store is not open yet. Nothing can be bought here and no payment is taken.</p></div>`;
+}
+function showTokens() { modal(tokensHTML()); }
+const scoutCap = () => Math.min(88, Math.round((S.lineup.length ? xiAvg() : 60) + 6 + 2 * S.up.scout + 2 * coachScout()));
+function showSearch() {
+  if (isC()) return; const base = Math.max(45, Math.floor(((S.lineup.length ? xiAvg() : 60) - 3) / 5) * 5), cap = scoutCap();
+  const opt = (id, lab, arr, def) => `<label class="flt"><span class="small mut">${lab}</span><select id="${id}">${arr.map(([v, t]) => `<option value="${v}" ${v === def ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+  modal(`<div id="searchModal"><h2>&#128269; Transfer search</h2><p class="small mut">Your scouts look for up to 4 players who match your filters. This costs ${TOK.search} tokens (you have ${fmt(S.tok)}). If nobody matches, you get the tokens back.</p>
+  <div class="flts">${opt('fPos', 'Position', [['ANY', 'Any'], ['GK', 'Goalkeeper'], ['DEF', 'Defender'], ['MID', 'Midfielder'], ['FWD', 'Forward']], 'ANY')}
+  ${opt('fMin', 'Minimum rating', [45, 50, 55, 60, 65, 70, 75, 80, 85].map(v => [v, v + '+']), base)}
+  ${opt('fAge', 'Maximum age', [[21, '21'], [24, '24'], [28, '28'], [33, 'Any']], 33)}
+  ${opt('fPrice', 'Maximum price', [[0, 'Any'], [500, '500'], [1000, '1,000'], [2500, '2,500'], [5000, '5,000'], [10000, '10,000']], 0)}</div>
+  <p class="tiny mut">Scouting level ${S.up.scout}: your scouts can find players up to about ${cap}. Upgrade scouting to find better ones.</p>
+  <button class="btn pri big" data-act="dosearch" id="btnDoSearch" ${S.tok < TOK.search ? 'disabled' : ''}>Search ${tokHTML} ${TOK.search}</button></div>`);
+}
+function doSearch(f) {
+  f = f || {}; if (!spendTok(TOK.search, 'A search')) return null;
+  const r = Math.random, lv = S.up.scout, cap = scoutCap(), minR = +f.min || 45, maxAge = +f.age || 33, maxP = +f.price || 0, out = [];
+  for (let k = 0; k < 80 && out.length < 4; k++) {
+    const pos = f.pos && f.pos !== 'ANY' ? f.pos : E.pick(r, POSN), lo = Math.min(minR, cap), age = E.ri(r, 17, Math.max(17, maxAge));
+    const p = E.makePlayer(pos, E.ri(r, lo, Math.max(lo, cap)), age, r, { potBonus: age <= 21 ? lv * 2 : 0 });
+    if (E.ovr(p) < Math.min(minR, cap) || p.age > maxAge) continue;
+    p.fit = 100; p.mor = 60; p.price = E.value(p); if (maxP && p.price > maxP) continue;
+    p.club = clubNameFor(p.id, S.club.name); p.found = true; out.push(p);
+  }
+  if (!out.length) { S.tok += TOK.search; save(); renderTop(); toast('No players match those filters. Tokens refunded: try wider filters.'); return []; }
+  S.market = out.concat(S.market).slice(0, 20); save(); return out;
+}
+/* ---------- live Touchline panel: pause any time, change mentality, substitutions, shouts ---------- */
+function showTouch() {
+  const m = MS.m, my = MS.info.myIdx, mm = $('#mmodal'), L = S.live, half = m.min < 45 ? 0 : 1;
+  L.min = Math.max(L.min || 0, m.min); save(); // a refresh replays up to (and including) every touchline decision
+  const used = k => (L.acts || []).some(a => a.k === 's' && a.v === k && (a.min < 45 ? 0 : 1) === half), bs = m.bst && m.bst[my];
+  mm.hidden = false;
+  mm.innerHTML = `<div class="modal" id="touchPanel"><h2 style="text-align:center;margin:0">&#128227; Touchline &middot; ${m.min}'</h2><p class="small mut" style="text-align:center;margin:4px 0 8px">${esc(m.sides[0].name)} ${m.score[0]} - ${m.score[1]} ${esc(m.sides[1].name)} &middot; Shots ${m.shots[0]}-${m.shots[1]} &middot; The match is paused.</p>
+  <h3 class="small mut" style="margin:8px 0 6px">MENTALITY</h3><div class="pills" id="tlPills">${Object.keys(E.MENTALITY).map(k => `<button class="pill ${m.sides[my].mentality === k ? 'on' : ''}" data-act="tlment" data-v="${k}">${E.MENTALITY[k].label}</button>`).join('')}</div>
+  <h3 class="small mut" style="margin:12px 0 6px">SHOUTS (each once per half, lasts 10 minutes)${bs && m.min <= bs.until ? ' &middot; <span style="color:var(--green)">active until ' + bs.until + "'</span>" : ''}</h3><div class="shouts" id="tlShouts">${Object.keys(SHOUTS).map(k => `<button class="btn sm shout" data-act="tlshout" data-v="${k}" id="sh-${k}" ${used(k) ? 'disabled' : ''}><b>${SHOUTS[k][0]}</b><small>${SHOUTS[k][1]}</small></button>`).join('')}</div>
+  ${htSubsHTML()}<button class="btn pri big" style="margin-top:14px" data-act="tlgo" id="tlgo">Resume match &#9654;</button></div>`;
+}
+function replayActs(m, my, L) {
+  let ch = false;
+  (L.subs || []).forEach(x => { if ((x.min == null ? 45 : x.min) !== m.min) return; m.sides[my].slots[x.i] = { p: P(x.pid), role: m.sides[my].slots[x.i].role }; E.pstOf(m, my, x.pid); ch = true; });
+  (L.acts || []).forEach(a => { if (a.min !== m.min) return; ch = true; if (a.k === 'm') m.sides[my].mentality = a.v; else if (a.k === 's') { const s = SHOUTS[a.v]; m.bst[my] = { A: s[2], D: s[3], until: a.min + 10 }; } });
+  if (ch) E.recompute(m);
+}
+function v7act(act, v, b) {
+  switch (act) {
+    case 'tokens': showTokens(); return true;
+    case 'tsearch': showSearch(); return true;
+    case 'dosearch': { const f = { pos: $('#fPos').value, min: $('#fMin').value, age: $('#fAge').value, price: $('#fPrice').value }; const res = doSearch(f); if (res && res.length) { closeModal(true); if (tab !== 'shop') navTab('shop'); shopTab = 'transfers'; render(); $('#view').scrollTop = 0; toast('Scouts found ' + res.length + ' player' + (res.length > 1 ? 's' : '') + '. They are at the top of the market.'); } else if (res) showSearch(); return true; }
+    case 'pskip': if (spendTok(TOK.skip, 'Kicking off now')) { S.pace.n++; save(); closeModal(true); openMatch(); } return true;
+    case 'pad': { const o = dayN('ads'); if (o.n >= PACE.adMax || adBusy) return true; adBusy = true; rewarded('match_ticket', () => { adBusy = false; o.n++; S.pace.at -= PACE.adCut; paceSync(); save(); closeModal(true); render(); toast(S.pace.n ? 'A match ticket is ready!' : 'Next match ticket in ' + dur(nextTicketIn())); }, () => { adBusy = false; }); return true; }
+    case 'tokad': { const o = dayN('tads'); if (o.n >= TOK.adMax || adBusy) return true; adBusy = true; rewarded('free_tokens', () => { adBusy = false; o.n++; S.tok += TOK.ad; save(); renderTop(); if (!$('#overlay').hidden && $('#tokCard')) showTokens(); else render(); toast('+' + TOK.ad + ' tokens!'); }, () => { adBusy = false; }); return true; }
+    case 'pboost': if (S.live) return true; if (!S.squad.some(p => p.fit < 100)) { toast('Everyone is already fully fit.'); return true; } if (spendTok(TOK.booster, 'A recovery booster')) { S.squad.forEach(p => { p.fit = Math.min(100, p.fit + TOK.boost); }); save(); render(); toast('Recovery booster: +' + TOK.boost + ' fitness for the whole squad.'); } return true;
+    case 'extra_tok': if (isC()) return true; if (sess().n === 0) { toast('Use your free training session first.'); return true; } if (sess().n >= MAX_SESS) { toast('No more sessions before this match.'); return true; } if (spendTok(TOK.extra, 'An extra session')) beginSession(); return true;
+    case 'tline': { if (!MS || MS.done || MS.m.min < 1 || MS.skip || MS.m.over || !$('#mmodal').hidden || (MS.m.min >= 45 && !MS.ht) || (MS.m.min === 45 && S.live && !S.live.htDone)) return true; clearTimeout(MS.timer); MS.timer = null; MS.paused = true; MS.subOut = null; showTouch(); return true; }
+    case 'tlment': { const m = MS.m, my = MS.info.myIdx; m.sides[my].mentality = v; E.recompute(m); (S.live.acts = S.live.acts || []).push({ min: m.min, k: 'm', v }); save(); feed(m.min, 'Touchline: mentality changed to ' + E.MENTALITY[v].label + '.', 'sys'); showTouch(); return true; }
+    case 'tlshout': { const m = MS.m, my = MS.info.myIdx, s = SHOUTS[v], half = m.min < 45 ? 0 : 1; if ((S.live.acts || []).some(a => a.k === 's' && a.v === v && (a.min < 45 ? 0 : 1) === half)) return true; m.bst[my] = { A: s[2], D: s[3], until: m.min + 10 }; E.recompute(m); (S.live.acts = S.live.acts || []).push({ min: m.min, k: 's', v }); save(); feed(m.min, 'Touchline shout: "' + s[0] + '!"', 'sys'); showTouch(); return true; }
+    case 'tlgo': { $('#mmodal').hidden = true; MS.paused = false; MS.subOut = null; save(); MS.timer = setTimeout(tick, 400 / MS.speed); return true; }
+  }
+  return false;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-act]'); if (!b || !S) return;
+  if (v7act(b.dataset.act, b.dataset.v, b)) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+setInterval(() => { if (!S || !S.pace || !paceOn()) return; const n0 = S.pace.n; paceSync(); if (S.pace.n !== n0) { save(); if (!$('#app').hidden && $('#match').hidden && $('#overlay').hidden) render(); return; }
+  const el = $('#paceNext'); if (el) el.textContent = S.pace.n >= PACE.max ? 'Full' : 'Next in ' + dur(nextTicketIn()); const w = $('#waitT'); if (w) w.textContent = dur(nextTicketIn()); }, 1000);
 
 /* ---------- boot ---------- */
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#overlay').hidden) closeModal(); });
